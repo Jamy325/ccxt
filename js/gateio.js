@@ -22,6 +22,7 @@ module.exports = class gateio extends Exchange {
                 'withdraw': true,
                 'createDepositAddress': true,
                 'fetchDepositAddress': true,
+                'fetchOpenOrders': true,
             },
             'urls': {
                 'logo': 'https://user-images.githubusercontent.com/1294454/31784029-0313c702-b509-11e7-9ccc-bc0da6a0e435.jpg',
@@ -255,6 +256,86 @@ module.exports = class gateio extends Exchange {
     async cancelOrder (id, symbol = undefined, params = {}) {
         await this.loadMarkets ();
         return await this.privatePostCancelOrder ({ 'orderNumber': id });
+    }
+
+    async fetchOrders (symbol = undefined, since = undefined, limit = undefined, params = {}) {
+        if (!symbol)
+            throw new ExchangeError (this.id + ' fetchOrders() requires a symbol parameter');
+        let status =  params['type'] || 0;
+        if ((status === 0) || (status === 'open')) {
+            return await this.fetchOpenOrders(symbol, since, limit, params);
+        }
+
+        throw new ExchangeError(this.id+" fetchOrders() status "+status+" not impl yet");
+    }
+
+    async fetchOpenOrders (symbol = undefined, since = undefined, limit = undefined, params = {}) {
+        if (!symbol)
+            throw new ExchangeError (this.id + ' fetchOrders requires a symbol param');
+        await this.loadMarkets ();
+        let market = this.market (symbol);
+        let request = {
+            'symbol': market['id'],
+        };
+        if (limit)
+            request['limit'] = limit;
+        let response = await this.privatePostOpenOrders (this.extend (request, params));
+        return this.parseOrders (response["orders"], market, since, limit);
+    }
+
+    parseOrderStatus (status) {
+        if (status === 'open') {
+            return 'open';
+        } else if (status === 'canceled') {
+            return 'canceled';
+        } else if (status === 'done') {
+            return 'closed';
+        }
+        return status;
+    }
+
+    parseOrder (order, market = undefined) {
+        let status = this.parseOrderStatus(order["status"]);
+
+        let symbol = undefined;
+        if (!market) {
+            if ('currencyPair' in order) {
+                if (order['currencyPair'] in this.markets_by_id) {
+                    let marketId = order['currencyPair'];
+                    market = this.markets_by_id[marketId];
+                }
+            }
+        }
+        if (market)
+            symbol = market['symbol'];
+        let timestamp = parseInt(order['timestamp'])*1000;
+        let amount = parseFloat (order['amount']);
+        let filled = parseFloat (order['filledAmount']);
+        let remaining = amount - filled;
+        let price = parseFloat (order['initialRate']);
+        let cost = price * filled;
+
+        let average = 0;
+        if (filled)
+            average = parseFloat (cost / filled);
+        let result = {
+            'info': order,
+            'id': order['id'],
+            'timestamp': timestamp,
+            'datetime': this.iso8601 (timestamp),
+            'symbol': symbol,
+            'type': 'limit',
+            'side': order["type"].toLowerCase (),
+            'price': price,
+            'average': average,
+            'cost': cost,
+            'amount': amount,
+            'filled': filled,
+            'remaining': remaining,
+            'status': status,
+            'fee': undefined,
+        };
+        return result;
     }
 
     async queryDepositAddress (method, currency, params = {}) {
