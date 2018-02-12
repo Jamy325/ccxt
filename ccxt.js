@@ -50,6 +50,7 @@ const exchanges = {
     'allcoin':                 require ('./js/allcoin.js'),
     'anxpro':                  require ('./js/anxpro.js'),
     'bibox':                   require ('./js/bibox.js'),
+    'bigone':                   require ('./js/bigone.js'),
     'binance':                 require ('./js/binance.js'),
     'bit2c':                   require ('./js/bit2c.js'),
     'bitbay':                  require ('./js/bitbay.js'),

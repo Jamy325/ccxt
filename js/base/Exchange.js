@@ -403,7 +403,7 @@ module.exports = class Exchange {
                     details = 'offline, on maintenance or unreachable from this location at the moment'
                 if (ddosProtection)
                     error = DDoSProtection
-                throw new error ([ this.id, method, url, response.status, title, details ].join (' '))
+                throw new error ([ this.id, method, url, response.status, title, details, "response:"+responseBody ].join (' '))
             }
 
             throw e
@@ -449,7 +449,7 @@ module.exports = class Exchange {
         } else {
             error = ExchangeError
         }
-        throw new error ([ this.id, method, url, code, reason, details ].join (' '))
+        throw new error ([ this.id, method, url, code, reason, details, "origin:"+responseBody ].join (' '))
     }
 
     handleRestResponse (response, url, method = 'GET', requestHeaders = undefined, requestBody = undefined) {
