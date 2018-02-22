@@ -35,11 +35,13 @@ class bitfinex (Exchange):
                 'fetchClosedOrders': True,
                 'fetchDepositAddress': True,
                 'fetchFees': True,
+                'fetchFundingFees': True,
                 'fetchMyTrades': True,
                 'fetchOHLCV': True,
                 'fetchOpenOrders': True,
                 'fetchOrder': True,
                 'fetchTickers': True,
+                'fetchTradingFees': True,
                 'withdraw': True,
             },
             'timeframes': {
@@ -293,7 +295,7 @@ class bitfinex (Exchange):
         # fees = self.fetch_funding_fees()
         # funding = self.deep_extend(funding, fees)
         # return funding
-        raise NotImplemented(self.id + ' loadFees() not implemented yet')
+        raise NotSupported(self.id + ' loadFees() not implemented yet')
 
     def fetch_fees(self):
         fundingFees = self.fetch_funding_fees()
@@ -435,6 +437,16 @@ class bitfinex (Exchange):
         price = float(trade['price'])
         amount = float(trade['amount'])
         cost = price * amount
+        fee = None
+        if 'fee_amount' in trade:
+            feeCost = self.safe_float(trade, 'fee_amount')
+            feeCurrency = self.safe_string(trade, 'fee_currency')
+            if feeCurrency in self.currencies_by_id:
+                feeCurrency = self.currencies_by_id[feeCurrency]['code']
+            fee = {
+                'cost': feeCost,
+                'currency': feeCurrency,
+            }
         return {
             'id': str(trade['tid']),
             'info': trade,
@@ -447,15 +459,19 @@ class bitfinex (Exchange):
             'price': price,
             'amount': amount,
             'cost': cost,
-            'fee': None,
+            'fee': fee,
         }
 
-    def fetch_trades(self, symbol, since=None, limit=None, params={}):
+    def fetch_trades(self, symbol, since=None, limit=50, params={}):
         self.load_markets()
         market = self.market(symbol)
-        response = self.publicGetTradesSymbol(self.extend({
+        request = {
             'symbol': market['id'],
-        }, params))
+            'limit_trades': limit,
+        }
+        if since is not None:
+            request['timestamp'] = int(since / 1000)
+        response = self.publicGetTradesSymbol(self.extend(request, params))
         return self.parse_trades(response, market, since, limit)
 
     def fetch_my_trades(self, symbol=None, since=None, limit=None, params={}):
@@ -575,7 +591,7 @@ class bitfinex (Exchange):
             ohlcv[5],
         ]
 
-    def fetch_ohlcv(self, symbol, timeframe='1m', since=None, limit=None, params={}):
+    def fetch_ohlcv(self, symbol, timeframe='1m', since=None, limit=100, params={}):
         self.load_markets()
         market = self.market(symbol)
         v2id = 't' + market['id']
@@ -583,9 +599,8 @@ class bitfinex (Exchange):
             'symbol': v2id,
             'timeframe': self.timeframes[timeframe],
             'sort': 1,
+            'limit': limit,
         }
-        if limit is not None:
-            request['limit'] = limit
         if since is not None:
             request['start'] = since
         request = self.extend(request, params)

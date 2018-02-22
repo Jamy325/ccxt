@@ -3,7 +3,7 @@
 //  ---------------------------------------------------------------------------
 
 const Exchange = require ('./base/Exchange');
-const { ExchangeError, AuthenticationError, NotSupported, InvalidOrder, OrderNotFound, ExchangeNotAvailable } = require ('./base/errors');
+const { ExchangeError, AuthenticationError, NotSupported, InvalidOrder, OrderNotFound, ExchangeNotAvailable, DDoSProtection } = require ('./base/errors');
 
 //  ---------------------------------------------------------------------------
 
@@ -239,7 +239,7 @@ module.exports = class livecoin extends Exchange {
     async fetchFees (params = {}) {
         let tradingFees = await this.fetchTradingFees (params);
         return this.extend (tradingFees, {
-            'withdraw': 0.0,
+            'withdraw': {},
         });
     }
 
@@ -563,6 +563,8 @@ module.exports = class livecoin extends Exchange {
                         throw new InvalidOrder (this.id + ': Unable to block funds ' + this.json (response));
                     } else if (error === 503) {
                         throw new ExchangeNotAvailable (this.id + ': Exchange is not available ' + this.json (response));
+                    } else if (error === 429) {
+                        throw new DDoSProtection (this.id + ': Too many requests' + this.json (response));
                     } else {
                         throw new ExchangeError (this.id + ' ' + this.json (response));
                     }

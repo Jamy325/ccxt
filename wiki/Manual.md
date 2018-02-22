@@ -315,7 +315,11 @@ Below is a detailed description of each of the base exchange properties:
 
 - `userAgent`: An object to set HTTP User-Agent header to. The ccxt library will set its User-Agent by default. Some exchanges may not like it. If you are having difficulties getting a reply from an exchange and want to turn User-Agent off or use the default one, set this value to false, undefined, or an empty string.
 
-- `verbose`: A boolean flag indicating whether to log HTTP requests to stdout (verbose flag is false by default).
+- `verbose`: A boolean flag indicating whether to log HTTP requests to stdout (verbose flag is false by default). Python people have an alternative way of DEBUG logging with a standard pythonic logger, which is enabled by adding these two lines to the beginning of their code:
+  ```Python
+  import logging
+  logging.basicConfig(level=logging.DEBUG)
+  ```
 
 - `markets`: An associative array of markets indexed by common trading pairs or symbols. Markets should be loaded prior to accessing this property. Markets are unavailable until you call the `loadMarkets() / load_markets()` method on exchange instance.
 
@@ -337,7 +341,7 @@ Below is a detailed description of each of the base exchange properties:
 
 - `has`: An assoc-array containing flags for exchange capabilities, including the following:
 
-    ```
+    ```JavaScript
     'has': {
 
         'CORS': false,  // has Cross-Origin Resource Sharing enabled (works from browser) or not
@@ -371,9 +375,10 @@ Below is a detailed description of each of the base exchange properties:
     ```
 
     The meaning of each flag showing availability of this or that method is:
-        - boolean `true` means the method is natively available from the exchange API and unified in the ccxt library
-        - boolean `false` means the method isn't natively available from the exchange API or not unified in the ccxt library yet
-        - string `'emulated` string means the endpoint isn't natively available from the exchange API but reconstructed by the ccxt library from available true-methods
+
+      - boolean `true` means the method is natively available from the exchange API and unified in the ccxt library
+      - boolean `false` means the method isn't natively available from the exchange API or not unified in the ccxt library yet
+      - an `'emulated'` string means the endpoint isn't natively available from the exchange API but reconstructed by the ccxt library from available true-methods
 
 ## Rate Limit
 
@@ -543,7 +548,7 @@ The ccxt library abstracts uncommon market ids to symbols, standardized to a com
 
 A symbol is an uppercase string literal name for a pair of traded currencies with a slash in between. A currency is a code of three or four uppercase letters, like `BTC`, `ETH`, `USD`, `GBP`, `CNY`, `LTC`, `JPY`, `DOGE`, `RUB`, `ZEC`, `XRP`, `XMR`, etc. Some exchanges have exotic currencies with longer names. The first currency before the slash is usually called *base currency*, and the one after the slash is called *quote currency*.  Examples of a symbol are: `BTC/USD`, `DOGE/LTC`, `ETH/EUR`, `DASH/XRP`, `BTC/CNY`, `ZEC/XMR`, `ETH/JPY`.
 
-Market structures are indexed by symbols and ids. The base exchange class also has builtin methods for accessing markets by symbols. Most API methods require a symbol to be passed in their first parameter. You are often required to specify a symbol when querying current prices, making orders, etc.
+Market structures are indexed by symbols and ids. The base exchange class also has builtin methods for accessing markets by symbols. Most API methods require a symbol to be passed in their first argument. You are often required to specify a symbol when querying current prices, making orders, etc.
 
 Most of the time users will be working with market symbols. You will get a standard userland exception if you access non-existent keys in these dicts.
 
@@ -570,10 +575,10 @@ Most of the time users will be working with market symbols. You will get a stand
     await bitfinex.loadMarkets ()
 
     bitfinex.markets['BTC/USD']                   // symbol → market (get market by symbol)
-    bitfinex.marketsById['XRPBTC']                // id → market (get market by id)
+    bitfinex.markets_by_id['XRPBTC']              // id → market (get market by id)
 
     bitfinex.markets['BTC/USD']['id']             // symbol → id (get id by symbol)
-    bitfinex.marketsById['XRPBTC']['symbol']      // id → symbol (get symbol by id)
+    bitfinex.markets_by_id['XRPBTC']['symbol']    // id → symbol (get symbol by id)
 
 })
 ```
@@ -653,6 +658,14 @@ It depends on which exchange you are using, but some of them have a reversed (in
 
 For those exchanges the ccxt will do a correction, switching and normalizing sides of base and quote currencies when parsing exchange replies. This logic is financially and terminologically correct. If you want less confusion, remember the following rule: **base is always before the slash, quote is always after the slash in any symbol and with any market**.
 
+```
+base currency ↓
+             BTC / USDT
+             ETH / BTC
+            DASH / ETH
+                    ↑ quote currency
+```
+
 ## Market Cache Force Reload
 
 The `loadMarkets () / load_markets ()` is also a dirty method with a side effect of saving the array of markets on the exchange instance. You only need to call it once per exchange. All subsequent calls to the same method will return the locally saved (cached) array of markets.
@@ -675,14 +688,14 @@ When exchange markets are loaded, you can then access market information any tim
 
 ```Python
 # Python
-poloniex = ccxt.poloniex ({ 'verbose': True }) # log HTTP requests
-poloniex.load_markets () # request markets
-print (poloniex.id, poloniex.markets)   # output a full list of all loaded markets
-print (list (poloniex.markets.keys ())) # output a short list of market symbols
-print (poloniex.markets['BTC/ETH'])     # output single market details
-poloniex.load_markets () # return a locally cached version, no reload
-reloadedMarkets = poloniex.load_markets (True) # force HTTP reload = True
-print (reloadedMarkets['ETH/ZEC'])
+poloniex = ccxt.poloniex({'verbose': True}) # log HTTP requests
+poloniex.load_markets() # request markets
+print(poloniex.id, poloniex.markets)   # output a full list of all loaded markets
+print(list(poloniex.markets.keys())) # output a short list of market symbols
+print(poloniex.markets['BTC/ETH'])     # output single market details
+poloniex.load_markets() # return a locally cached version, no reload
+reloadedMarkets = poloniex.load_markets(True) # force HTTP reload = True
+print(reloadedMarkets['ETH/ZEC'])
 ```
 
 ```PHP
@@ -701,7 +714,7 @@ var_dump ($bitfinex->markets['XRP/BTC']);
 
 Each exchange offers a set of API methods. Each method of the API is called an *endpoint*. Endpoints are HTTP URLs for querying various types of information. All endpoints return JSON in response to client requests.
 
-Usually, there is an endpoint for getting a list of markets from an exchange, an endpoint for retrieving an order book for a particular market, an endpoint for retrieving trade history, endpoints for placing and cancelling orders, for money deposit and withdrawal, etc... Basically every kind of action you could perform within a particular exchange has a separate endpoint URL offered by the API.
+Usually, there is an endpoint for getting a list of markets from an exchange, an endpoint for retrieving an order book for a particular market, an endpoint for retrieving trade history, endpoints for placing and canceling orders, for money deposit and withdrawal, etc... Basically every kind of action you could perform within a particular exchange has a separate endpoint URL offered by the API.
 
 Because the set of methods differs from exchange to exchange, the ccxt library implements the following:
 - a public and private API for all possible URLs and methods
@@ -887,7 +900,7 @@ Note, that most of methods of the unified API accept an optional `params` parame
   - [Individually By Symbol](https://github.com/ccxt/ccxt/wiki/Manual#individually-by-symbol)
   - [All At Once](https://github.com/ccxt/ccxt/wiki/Manual#all-at-once)
 - [OHLCV Candlestick Charts](https://github.com/ccxt/ccxt/wiki/Manual#ohlcv-candlestick-charts)
-- [Public Trades And Closed Orders](https://github.com/ccxt/ccxt/wiki/Manual#trades-orders-executions-transactions)
+- [Public Trades](https://github.com/ccxt/ccxt/wiki/Manual#public-trades)
 
 ## Order Book
 
@@ -929,7 +942,7 @@ The structure of a returned order book is as follows:
 ```JavaScript
 {
     'bids': [
-        [ price, amount ],
+        [ price, amount ], // [ float, float ]
         [ price, amount ],
         ...
     ],
@@ -1029,24 +1042,26 @@ var_dump ($exchange->id, 'market price', $result);
 
 A price ticker contains statistics for a particular market/symbol for some period of time in recent past, usually last 24 hours. The structure of a ticker is as follows:
 
-```
+```JavaScript
 {
     'symbol':      string symbol of the market ('BTC/USD', 'ETH/BTC', ...)
     'info':      { the original non-modified unparsed reply from exchange API },
     'timestamp':   int (64-bit Unix Timestamp in milliseconds since Epoch 1 Jan 1970)
     'datetime':    ISO8601 datetime string with milliseconds
-    'high':        float (highest price)
-    'low':         float (lowest price)
-    'bid':         float (current bid (buy) price)
-    'ask':         float (current ask (sell) price)
-    'vwap':        float (volume weighed average price)
-    'open':        float (open price),
-    'first':       float (price of first trade),
-    'last':        float (price of last trade),
-    'change':      float (percentage change),
-    'average':     float (average),
-    'baseVolume':  float (volume of base currency),
-    'quoteVolume': float (volume of quote currency),
+    'high':        float, // highest price
+    'low':         float, // lowest price
+    'bid':         float, // orderbook's current best bid (buy) price
+    'bidVolume':   float, // orderbook's current best bid (buy) amount
+    'ask':         float, // orderbook's current best ask (sell) price
+    'askVolume':   float, // orderbook's current best ask (sell) amount
+    'vwap':        float, // volume weighed average price
+    'open':        float, // open price)
+    'last':        float, // price of last trade
+    'change':      float, // absolute change, `last - open`
+    'percentage':  float, // relative change, `(change/open) * 100`
+    'average':     float, // average price, `(last + open) / 2`
+    'baseVolume':  float, // volume of base currency
+    'quoteVolume': float, // volume of quote currency
 }
 ```
 
@@ -1181,15 +1196,15 @@ To get the list of available timeframes for your exchange see the `timeframes` p
 
 The fetchOHLCV method shown above returns a list (a flat array) of OHLCV candles represented by the following structure:
 
-```
+```JavaScript
 [
     [
-        1504541580000, // UTC timestamp in milliseconds
-        4235.4,        // (O)pen price
-        4240.6,        // (H)ighest price
-        4230.0,        // (L)owest price
-        4230.7,        // (C)losing price
-        37.72941911    // (V)olume (in terms of the base currency)
+        1504541580000, // UTC timestamp in milliseconds, integer
+        4235.4,        // (O)pen price, float
+        4240.6,        // (H)ighest price, float
+        4230.0,        // (L)owest price, float
+        4230.7,        // (C)losing price, float
+        37.72941911    // (V)olume (in terms of the base currency), float
     ],
     ...
 ]
@@ -1236,9 +1251,9 @@ foreach ($exchange->markets as $symbol => $market) {
 }
 ```
 
-The fetchTrades method shown above returns an ordered list of trades (a flat array, most recent trade first) represented by the following structure:
+The fetchTrades method shown above returns an ordered list of trades (a flat array, sorted by timestamp in ascending order, most recent trade last) represented by the following structure:
 
-```
+```JavaScript
 [
     {
         'info':       { ... },                  // the original decoded JSON as is
@@ -1281,6 +1296,8 @@ Authentication with all exchanges is handled automatically if provided with prop
 
 This process may differ from exchange to exchange. Some exchanges may want the signature in a different encoding, some of them vary in header and body param names and formats, but the general pattern is the same for all of them.
 
+**You should not share the same API keypair across multiple instances of an exchange running simultaneously, in separate scripts or in multiple threads. Using the same keypair from different instances simultaneously may cause all sorts of unexpected behaviour.**
+
 The authentication is already handled for you, so you don't need to perform any of those steps manually unless you are implementing a new exchange class. The only thing you need for trading is the actual API key pair.
 
 ## API Keys Setup
@@ -1294,7 +1311,7 @@ The API credentials usually include the following:
 
 In order to create API keys find the API tab or button in your user settings on the exchange website. Then create your keys and copy-paste them to your config file. Your config file permissions should be set appropriately, unreadable to anyone except the owner.
 
-**Remember to keep your secret key safe from unauthorized use, do not send or tell it to anybody. A leak of the secret key or a breach in security can cost you a fund loss.**
+**Remember to keep your apiKey and secret key safe from unauthorized use, do not send or tell it to anybody. A leak of the secret key or a breach in security can cost you a fund loss.**
 
 To set up an exchange for trading just assign the API credentials to an existing exchange instance or pass them to exchange constructor upon instantiation, like so:
 
@@ -1394,8 +1411,6 @@ The returned balance structure is as follows:
 
 Some exchanges may not return full balance info. Many exchanges do not return balances for your empty or unused accounts. In that case some currencies may be missing in returned balance structure.
 
-Also, some exchanges cannot return certain fields and are only capable of telling a total balance (without details). Therefore some or all of the free, used and total amounts may be undefined, None or null. You need to account for that when working with returned balances.
-
 ```JavaScript
 // JavaScript
 (async () => {
@@ -1413,6 +1428,10 @@ print (exchange.fetch_balance ())
 var_dump ($exchange->fetch_balance ());
 ```
 
+### Balance inference
+
+Some exchanges do not return the full set of balance information from their API. Those will only return just the `free` or just the `total` funds, i.e. funds `used` on orders unknown. In such cases ccxt will try to obtain the missing data from [.orders cache](#orders-cache) and will guess complete balance info from what is known for sure. However, in rare cases the available info may not be enough to deduce the missing part, thus, **the user shoud be aware of the possibility of not getting complete balance info from less sophisticated exchanges**.
+
 ## Orders
 
 ```diff
@@ -1423,20 +1442,101 @@ var_dump ($exchange->fetch_balance ());
 
 ### Querying Orders
 
-Most of the time you can query orders by their ids or statuses, though not all exchanges offer a full and flexible set of endpoints for querying orders. Some exchanges might not have a method for fetching recently closed orders, the other can lack a method for getting an order by id, etc. The ccxt library will target those cases by making workarounds if possible.
+Most of the time you can query orders by an id or by a symbol, though not all exchanges offer a full and flexible set of endpoints for querying orders. Some exchanges might not have a method for fetching recently closed orders, the other can lack a method for getting an order by id, etc. The ccxt library will target those cases by making workarounds where possible.
+
+The list of methods for querying orders consists of the following:
+
+- `fetchOrder (id, symbol = undefined, params = {})`
+- `fetchOrders (symbol = undefined, since = undefined, limit = undefined, params = {})`
+- `fetchOpenOrders (symbol = undefined, since = undefined, limit = undefined, params = {})`
+- `fetchClosedOrders (symbol = undefined, since = undefined, limit = undefined, params = {})`
+
+Note that the naming of those methods indicates if the method returns a single order or multiple orders (an array/list of orders). The `fetchOrder()` method requires a mandatory order id argument (a string). Some exchanges also require a symbol to fetch an order by id, where order ids can intersect with various trading pairs. Also, note that all other methods above return an array (a list) of orders. Most of them will require a symbol argument as well, however, some exchanges allow querying with a symbol unspecified (meaning *all symbols*).
+
+The library will throw a NotSupported exception if a user calls a method that is not available from the exchange or is not implemented in ccxt.
+
+To check if any of the above methods are available, look into the `.has` property of the exchange:
+
+```JavaScript
+// JavaScript
+'use strict';
+
+const ccxt = require ('ccxt')
+const id = 'poloniex'
+exchange = new ccxt[id] ()
+console.log (exchange.has)
+```
+
+```Python
+# Python
+import ccxt
+id = 'cryptopia'
+exchange = getattr(ccxt, 'id') ()
+print(exchange.has)
+```
+
+```PHP
+// PHP
+$exchange = new \ccxt\liqui ();
+print_r ($exchange->has); // or var_dump
+```
+
+A typical structure of the `.has` property usually contains the following flags corresponding to order API methods for querying orders:
+
+```JavaScript
+exchange.has = {
+
+    // ... other flags ...
+
+    'fetchOrder': true, // available from the exchange directly and implemented in ccxt
+    'fetchOrders': false, // not available from the exchange or not implemented in ccxt
+    'fetchOpenOrders': true,
+    'fetchClosedOrders': 'emulated', // not available from the exchange, but emulated in ccxt
+
+    // ... other flags ...
+
+}
+```
+
+The meanings of boolean `true` and `false` are obvious. A string value of `emulated` means that particular method is missing in the exchange API and ccxt will workaround that where possible by adding a caching layer, the `.orders` cache. The next section describes the inner workings of the `.orders` cache, one has to understand it to do order management with ccxt effectively.
+
+#### `.orders` cache
+
+Some exchanges do not have a method for fetching closed orders or all orders. They will offer just the `fetchOpenOrders` endpoint, sometimes they are also generous to offer a `fetchOrder` endpoint as well. This means that they don't have any methods for fetching the order history. The ccxt library will try to emulate the order history for the user by keeping the cached .orders property containing all orders issued within a particular exchange class instance.
+
+Whenever a user creates a new order or cancels an existing open order or does some other action that would alter the order status, the ccxt library will remember the entire order info in its cache. Upon a subsequent call to an emulated `fetchOrder`, `fetchOrders` or `fetchClosedOrders` method, the exchange instance will send a single request to **`fetchOpenOrders`** and will compare currently fetched open orders with the orders stored in cache previously. The ccxt library will check each cached order and will try to match it with a corresponding fetched open order. When the cached order isn't present in the open orders fetched from the exchange anymore, the library marks the cached order as `closed` (filled). The call to a `fetchOrder`, `fetchOrders`, `fetchClosedOrders` will then return the updated orders from `.orders` cache to the user.
+
+The same logic can be put shortly: *if a cached order is not found in fetched open orders it isn't open anymore, therefore, closed*. This makes the library capable of tracking the order status and order history even with exchanges that don't have that functionality in their API natively. This is true for all methods that query orders or manipulate (place, cancel or edit) orders in any way.
+
+In most cases the `.orders` cache will work transparently for the user. Most often the exchanges themselves have a sufficient set of methods. However, with some exchanges not having a complete API, the `.orders` cache has the following known limitations:
+
+- If the user does not save the `.orders` cache between program runs and does not restore it upon launching a new run, the `.orders` cache will be lost, for obvious reasons. Therefore upon a call to fetchClosedOrders later on a different run, the exchange instance will return an empty list of orders. Without a properly restored cache a fresh new instance of the exchange won't be able to know anything about the orders that were closed and canceled (no history of orders).
+- If the API keypair is shared across multiple exchange instances (e.g. when the user accesses the same exchange account in a multithreaded environment or in simultaneously launched separate scripts). Each particular instance would not be able to know anything about the orders created or canceled by other instances. This means that the order cache is not shared, and, in general, the same API keypair should not be shared across multiple instances accessing the private API. Otherwise it will cause side-effects with nonces and cached data falling out of sync.
+- If the order was placed or canceled from outside of ccxt (on the exchange's website or by other means), the new order status won't arrive to the cache and ccxt won't be able to return it properly later.
+- If an order's cancelation request bypasses ccxt then the library will not be able to find the order in the list of open orders returned from a subsequent call to `fetchOpenOrders()`. Thus the library will mark the cached order with a `'closed'` status.
+- When `fetchOrder(id)` is emulated, the library will not be able to return a specific order, if it was not cached previously or if a change of the order' status was done bypassing ccxt. In that case the library will throw an `OrderNotFound` exception.
+- If an unhandled error leads to a crash of the application and the `.orders` cache isn't saved and restored upon restart, the cache will be lost. Handling the exceptions properly is the responsibility of the user. One has to pay **extra care** when implementing proper [error handling](#error-handling), otherwise the `.orders` cache may fall out of sync.
+
+*Note: the order cache functionality is to be reworked soon to obtain the order statuses from private trades history, where available. This is a work in progress, aimed at adding full-featured support for order fees, costs and other info. More about it here: https://github.com/ccxt/ccxt/issues/569*.
 
 #### By Order Id
 
-To get details of a particular order by its id, use the fetchOrder / fetch_order method. Some exchanges also require a symbol even when fetching a particular order by id.
+To get the details of a particular order by its id, use the fetchOrder / fetch_order method. Some exchanges also require a symbol even when fetching a particular order by id.
 
 The signature of the fetchOrder/fetch_order method is as follows:
 
 ```JavaScript
-//  you can use the params argument for custom overrides
-exchange.fetchOrder (id, symbol = undefined, params = {})
+if (exchange.has['fetchOrder']) {
+    //  you can use the params argument for custom overrides
+    let order = await exchange.fetchOrder (id, symbol = undefined, params = {})
+}
 ```
 
-You can pass custom overrided key-values in additional params if needed. Below are examples of using the fetchOrder method to get order info from an authenticated exchange instance:
+**Some exchanges don't have an endpoint for fetching an order by id, ccxt will emulate it where possible.** For now it may still be missing here and there, as this is a work in progress.
+
+You can pass custom overrided key-values in the additional params argument to supply a specific order type, or some other setting if needed.
+
+Below are examples of using the fetchOrder method to get order info from an authenticated exchange instance:
 
 ```JavaScript
 // JavaScript
@@ -1448,41 +1548,51 @@ You can pass custom overrided key-values in additional params if needed. Below a
 
 ```Python
 # Python 2/3 (synchronous)
-order = exchange.fetch_order(id)
-print(order)
+if exchange.has['fetchOrder']:
+    order = exchange.fetch_order(id)
+    print(order)
 
 # Python 3.5+ asyncio (asynchronous)
 import asyncio
 import ccxt.async as ccxt
-order = asyncio.get_event_loop().run_until_complete(exchange.fetch_order(id))
-print(order)
+if exchange.has['fetchOrder']:
+    order = asyncio.get_event_loop().run_until_complete(exchange.fetch_order(id))
+    print(order)
 ```
 
 ```PHP
 // PHP
-$order = $exchange->fetch_order ($id);
-var_dump ($order);
+if ($exchange->has['fetchOrder']) {
+    $order = $exchange->fetch_order ($id);
+    var_dump ($order);
+}
 ```
 
 #### All Orders
 
 ```JavaScript
-exchange.fetchOrders (symbol = undefined, since = undefined, limit = undefined, params = {})
+if (exchange.has['fetchOrders'])
+    exchange.fetchOrders (symbol = undefined, since = undefined, limit = undefined, params = {})
 ```
+
+**Some exchanges don't have an endpoint for fetching all orders, ccxt will emulate it where possible.** For now it may still be missing here and there, as this is a work in progress.
 
 #### Open Orders
 
 ```JavaScript
-exchange.fetchOpenOrders (symbol = undefined, since = undefined, limit = undefined, params = {})
+if (exchange.has['fetchOpenOrders'])
+    exchange.fetchOpenOrders (symbol = undefined, since = undefined, limit = undefined, params = {})
 ```
 
 #### Closed Orders
 
-Do not confuse *closed orders* with *trades* (aka *fills*)! An order can be closed (filled with) multiple opposing trades! So, a closed order is not the same as a trade. In general, the order does not have a `fee` at all, but each particular user trade does have `fee`, `cost` and other properties. However,
-many exchanges propagate those properties to the orders as well.
+Do not confuse *closed orders* with *trades* aka *fills* ! An order can be closed (filled) with multiple opposing trades! So, a *closed order* is not the same as a *trade*. In general, the order does not have a `fee` at all, but each particular user trade does have `fee`, `cost` and other properties. However, many exchanges propagate those properties to the orders as well.
+
+**Some exchanges don't have an endpoint for fetching closed orders, ccxt will emulate it where possible.** For now it may still be missing here and there, as this is a work in progress.
 
 ```JavaScript
-exchange.fetchClosedOrders (symbol = undefined, since = undefined, limit = undefined, params = {})
+if (exchange.has['fetchClosedOrders'])
+    exchange.fetchClosedOrders (symbol = undefined, since = undefined, limit = undefined, params = {})
 ```
 
 ### Order Structure
@@ -1500,8 +1610,9 @@ Most of methods returning orders within ccxt unified API will usually yield an o
     'side':      'buy',          // 'buy', 'sell'
     'price':      0.06917684,    // float price in quote currency
     'amount':     1.5,           // ordered amount of base currency
-    'filled':     1.0,           // filled amount of base currency
-    'remaining':  0.5,           // remaining amount to fill
+    'filled':     1.1,           // filled amount of base currency
+    'remaining':  0.4,           // remaining amount to fill
+    'cost':       0.076094524,   // 'filled' * 'price'
     'trades':   [ ... ],         // a list of order trades/executions
     'fee':      {                // fee info, if available
         'currency': 'BTC',       // which currency the fee is (usually quote)
@@ -1586,7 +1697,7 @@ kraken.create_market_buy_order('BTC/USD', 1, {'trading_agreement': 'agree'})
 $hitbtc->create_order ('BTC/USD', 'limit', 'buy', 1, 3000, array ('clientOrderId' => '123'));
 ```
 
-### Cancelling Orders
+### Canceling Orders
 
 To cancel an existing order pass the order id to `cancelOrder (id, symbol, params) / cancel_order (id, symbol, params)` method. Note, that some exchanges require a second symbol parameter even to cancel a known order by id. The usage is shown in the following examples:
 
@@ -1605,7 +1716,7 @@ exchange.cancel_order ('1234567890') # replace with your order id here (a string
 $exchange->cancel_order ('1234567890'); // replace with your order id here (a string)
 ```
 
-#### Exceptions on order cancelling
+#### Exceptions on order canceling
 
 The `cancelOrder()` is usually used on open orders only. However, it may happen that your order gets executed (filled and closed)
 before your cancel-request comes in, so a cancel-request might hit an already-closed order.
@@ -1616,8 +1727,9 @@ As such, `cancelOrder()` can throw an `OrderNotFound` exception in these cases:
 - canceling an already-closed order
 - canceling an already-canceled order
 
+## Personal Trades
 
-## Trades / Transactions / Fills / Executions
+
 
 ```
 - this part of the unified API is currenty a work in progress
@@ -1625,7 +1737,72 @@ As such, `cancelOrder()` can throw an `OrderNotFound` exception in these cases:
 - contributions, pull requests and feedback appreciated
 ```
 
-A trade is a result of order execution. Note, that orders and trades have 1-n relationship: execution of 1 order may result in several trades.
+### Orders And Trades Relationship
+
+A trade is also often called `a fill`. Each trade is a result of order execution. Note, that orders and trades have a one-to-many relationship: an execution of one order may result in several trades. However, when one order matches another opposing order, the pair of two matching orders yields one trade. Thus, when an order matches multiple opposing orders, this yields multiple trades, one trade per each pair of matched orders.
+
+To put it shortly, an order can contain *one or more* trades. Or, in other words, an order can be *filled* with one or more trades.
+
+For example, an orderbook can have the following orders (whatever trading symbol or pair it is):
+
+```
+    | price | amount
+----|----------------
+  a |  1.200 | 200
+  s |  1.100 | 300
+  k |  0.900 | 100
+----|----------------
+  b |  0.800 | 100
+  i |  0.700 | 200
+  d |  0.500 | 100
+```
+
+All specific numbers above aren't real, this is just to illustrate the way orders and trades are related in general.
+
+A seller decides to place a sell limit order on the ask side for a price of 0.700 and an amount of 150.
+
+```
+    | price | amount
+----|----------------  ↓
+  a |  1.200 | 200     ↓
+  s |  1.100 | 300     ↓
+  k |  0.900 | 100     ↓
+----|----------------  ↓
+  b |  0.800 | 100     ↓ sell 150 for 0.700
+  i |  0.700 | 200     --------------------
+  d |  0.500 | 100
+```
+
+As the price and amount of the incoming sell (ask) order cover more than one bid order (orders `b` and `i`), the following sequence of events usually happens within an exchange engine very quickly, but not immediately:
+
+1. Order `b` is matched against the incoming sell because their prices intersect. Their volumes *"mutually annihilate"* each other, so, the bidder gets 100 for a price of 0.800. The seller (asker) will have his sell order partially filled by bid volume of 100.
+
+2. A trade is generated for the order `b` against the incoming sell order. That trade *"fills"* the entire order `b` and most of the sell order. One trade is generated pear each pair of matched orders, whether the amount was filled completely or partially. In this cases the amount of 100 fills order `b` completely (closed the order `b`), and also fills the selling order partially (leaves it open in the orderbook).
+
+3. Order `b` now has a status of `closed` and a filled volume of 100. It contains one trade against the selling order. The selling order has `open` status and a filled volume of 100. It contains one trade against order `b`. Thus each order has just one fill-trade so far.
+
+3. The incoming sell order has a filled amount of 100 and has yet to fill the reamining amount of 50 from its initial amount of 150 in total.
+
+4. Order `i` is matched against the remaining part of incoming sell, because their prices intersect. The amount of buying order `i` which is 200 completely annihilates the reamining sell amount of 50. The order `i` is filled partially by 50, but the rest of its volume, namely the remaining amount of 150 will stay in the orderbook. The selling order, however, is filled completely by this second match.
+
+5. A trade is generated for the order `i` against the incoming sell order. That trade partially fills order `i`. And completes the filling of the sell order. Again, this is just one trade for a pair of matched orders.
+
+6. Order `i` now has a status of `open`, a filled amount of 50, and a remaining amount of 150. It contains one filling trade against the selling order. The selling order has a `closed` status now, as it was completely filled its total initial amount of 150. However, it contains two trades, the first against order `b` and the second against order `i`. Thus each order can have one or more filling trades, depending on how their volumes were matched by the exchange engine.
+
+After the above sequence takes place, the updated orderbook will look like this.
+
+```
+    | price | amount
+----|----------------
+  a |  1.200 | 200
+  s |  1.100 | 300
+  k |  0.900 | 100
+----|----------------
+  i |  0.700 | 150
+  d |  0.500 | 100
+```
+
+Notice that the order `b` has disappeared, the selling order also isn't there. All closed and fully-filled orders disappear from the orderbook. The order `i` which was filled partially and still has a remaining volume and an `open` status, is still there.
 
 
 ### Recent Trades
@@ -1652,14 +1829,14 @@ Returns ordered array of trades (most recent trade first).
 ### Deposit
 
 ```
-fetchDepositAddress (code, params={})
-createDepositAddress (code, params={})
+fetchDepositAddress (code, params = {})
+createDepositAddress (code, params = {})
 ```
 
-- code is the currency code
-- params contains optional extra overrides
+- `code` is the currency code (uppercase string)
+- `params` contains optional extra overrides
 
-```
+```JavaScript
 {
     'currency': currency, // currency code
     'address': address,   // address in terms of requested currency
@@ -1676,7 +1853,7 @@ exchange.withdraw (currency, amount, address, tag = undefined, params = {})
 
 The withdraw method returns a dictionary containing the withdrawal id, which is usually the txid of the onchain transaction itself, or an internal *withdrawal request id* registered within the exchange. The returned value looks as follows:
 
-```
+```JavaScript
 {
     'info' { ... },      // unparsed reply from the exchange, as is
     'id': '12345567890', // string withdrawal id, if any
@@ -1856,7 +2033,14 @@ Below is an outline of exception inheritance hierarchy:
     - `DDoSProtection`: This exception is thrown whenever Cloudflare or Incapsula rate limiter restrictions are enforced per user or region/location. The ccxt library does a case-insensitive search in the response received from the exchange for one of the following keywords:
       - `cloudflare`
       - `incapsula`
-    - `RequestTimeout`: The name literally says it all. This exception is raised when connection with the exchange fails or data is not fully received in a specified amount of time. This is controlled by the `timeout` option.
+    - `RequestTimeout`: This exception is raised when the connection with the exchange fails or data is not fully received in a specified amount of time. This is controlled by the `timeout` option. When a `RequestTimeout` is raised, the user doesn't know the outcome of a request (whether it was accepted by the exchange server or not). Thus it's advised to handle this type of exception in the following manner:
+      - for fetching requests it is safe to retry the call
+      - for a request to `cancelOrder(id, symbol)` a user is required to retry the same call the second time. If instead of a retry a user calls a `fetchOrder()`, `fetchOrders()`, `fetchOpenOrders()` or `fetchClosedOrders()` right away without a retry to call `cancelOrder()`, this may cause the [`.orders` cache](#orders-cache) to fall out of sync. A subsequent retry will return one of the following possible results:
+        - a request is completed successfully, meaning the order has been properly canceled now
+        - an `OrderNotFound` exception is raised, which means the order was either already canceled on the first attempt or has been executed (filled and closed) in the meantime between the two attempts. Note, that the order will still have an `'open'` status in the `.orders` cache. To determine the actual order status you'll need to call `fetchOrder(id)` to update the cache properly (where available from the exchange). If the `fetchOrder()` method is `'emulated'` the ccxt library will mark the order as `'closed'`. The user has to call `fetchBalance()` and set the order status to `'canceled'` manually if the balance hasn't changed (a trade didn't not occur).
+      - if a request to `createOrder()` fails with a `RequestTimeout` the user should:
+        - update the `.orders` cache with a call to `fetchOrders()`, `fetchOpenOrders()`, `fetchClosedOrders()` to check if the request to place the order has succeeded and the order is now open
+        - if the order is not `'open'` the user should `fetchBalance()` to check if the balance has changed since the order was created on the first run, then filled and closed by the time of the second check. Note that `fetchBalance()` relies on the `.orders` cache for [balance inference](#balance-inference) and thus should only be called after updating the cache!
     - `ExchangeNotAvailable`: The ccxt library throws this error if it detects any of the following keywords in response:
       - `offline`
       - `unavailable`
@@ -1877,6 +2061,11 @@ In case you experience any difficulty connecting to a particular exchange, do th
 
 - Check the [CHANGELOG](https://github.com/ccxt/ccxt/blob/master/CHANGELOG.md) for recent updates.
 - Turn `verbose = true` to get more detail about it.
+- Python people can turn on DEBUG logging level with a standard pythonic logger, by adding these two lines to the beginning of their code:
+  ```Python
+  import logging
+  logging.basicConfig(level=logging.DEBUG)
+  ```
 - Check your API credentials. Try a fresh new keypair if possible.
 - If it is a Cloudflare protection error, try these examples:
   - https://github.com/ccxt/ccxt/blob/master/examples/js/bypass-cloudflare.js
@@ -1891,7 +2080,8 @@ In case you experience any difficulty connecting to a particular exchange, do th
 
 ## Notes
 
-- Use the `verbose = true` option or instantiate your troublesome exchange with `new ccxt.exchange ({ 'verbose': true })` to see the HTTP exchange in details. The verbose output will also be of use for us to debug it if you submit an issue on GitHub.
+- Use the `verbose = true` option or instantiate your troublesome exchange with `new ccxt.exchange ({ 'verbose': true })` to see the HTTP requests and responses in details. The verbose output will also be of use for us to debug it if you submit an issue on GitHub.
+- Use DEBUG logging in Python!
 - As written above, some exchanges are not available in certain countries. You should use a proxy or get a server somewhere closer to the exchange.
 - If you are getting authentication errors or *'invalid keys'* errors, those are most likely due to a nonce issue.
 - Some exchanges do not state it clearly if they fail to authenticate your request. In those circumstances they might respond with an exotic error code, like HTTP 502 Bad Gateway Error or something that's even less related to the actual cause of the error.

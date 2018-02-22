@@ -136,7 +136,8 @@ class okcoinusd (Exchange):
                 },
             },
             'exceptions': {
-                '1009': OrderNotFound,  # for spot markets
+                '1009': OrderNotFound,  # for spot markets, cancelling closed order
+                '1051': OrderNotFound,  # for spot markets, cancelling "just closed" order
                 '20015': OrderNotFound,  # for future markets
                 '1013': InvalidOrder,  # no contract type(PR-1101)
                 '1027': InvalidOrder,  # createLimitBuyOrder(symbol, 0, 0): Incorrect parameter may exceeded limits
@@ -152,12 +153,20 @@ class okcoinusd (Exchange):
         response = self.webGetMarketsProducts()
         markets = response['data']
         result = []
+        futureMarkets = {
+            'BCH/USD': True,
+            'BTC/USD': True,
+            'ETC/USD': True,
+            'ETH/USD': True,
+            'LTC/USD': True,
+        }
         for i in range(0, len(markets)):
             id = markets[i]['symbol']
-            uppercase = id.upper()
-            baseId, quoteId = uppercase.split('_')
-            base = self.common_currency_code(baseId)
-            quote = self.common_currency_code(quoteId)
+            baseId, quoteId = id.split('_')
+            baseIdUppercase = baseId.upper()
+            quoteIdUppercase = quoteId.upper()
+            base = self.common_currency_code(baseIdUppercase)
+            quote = self.common_currency_code(quoteIdUppercase)
             symbol = base + '/' + quote
             precision = {
                 'amount': markets[i]['maxSizeDigit'],
@@ -196,11 +205,14 @@ class okcoinusd (Exchange):
                 },
             })
             result.append(market)
-            if (self.has['futures']) and(market['quote'] == 'USDT'):
+            futureQuote = 'USD' if (market['quote'] == 'USDT') else market['quote']
+            futureSymbol = market['base'] + '/' + futureQuote
+            if (self.has['futures']) and(futureSymbol in list(futureMarkets.keys())):
                 result.append(self.extend(market, {
                     'quote': 'USD',
                     'symbol': market['base'] + '/USD',
                     'id': market['id'].replace('usdt', 'usd'),
+                    'quoteId': market['quoteId'].replace('usdt', 'usd'),
                     'type': 'future',
                     'spot': False,
                     'future': True,
@@ -333,15 +345,15 @@ class okcoinusd (Exchange):
         response = self.privatePostUserinfo()
         balances = response['info']['funds']
         result = {'info': response}
-        currencies = list(self.currencies.keys())
-        for i in range(0, len(currencies)):
-            currency = currencies[i]
-            lowercase = currency.lower()
+        ids = list(self.currencies_by_id.keys())
+        for i in range(0, len(ids)):
+            id = ids[i]
+            code = self.currencies_by_id[id]['code']
             account = self.account()
-            account['free'] = self.safe_float(balances['free'], lowercase, 0.0)
-            account['used'] = self.safe_float(balances['freezed'], lowercase, 0.0)
+            account['free'] = self.safe_float(balances['free'], id, 0.0)
+            account['used'] = self.safe_float(balances['freezed'], id, 0.0)
             account['total'] = self.sum(account['free'], account['used'])
-            result[currency] = account
+            result[code] = account
         return self.parse_balance(result)
 
     def create_order(self, symbol, type, side, amount, price=None, params={}):
@@ -405,7 +417,7 @@ class okcoinusd (Exchange):
         if status == 0:
             return 'open'
         if status == 1:
-            return 'partial'
+            return 'open'
         if status == 2:
             return 'closed'
         if status == 4:
@@ -545,13 +557,13 @@ class okcoinusd (Exchange):
         }, params))
         return self.filter_by(orders, 'status', 'closed')
 
-    def withdraw(self, currency, amount, address, tag=None, params={}):
+    def withdraw(self, code, amount, address, tag=None, params={}):
         self.load_markets()
-        lowercase = currency.lower() + '_usd'
+        currency = self.currency(code)
         # if amount < 0.01:
         #     raise ExchangeError(self.id + ' withdraw() requires amount > 0.01')
         request = {
-            'symbol': lowercase,
+            'symbol': currency['id'],
             'withdraw_address': address,
             'withdraw_amount': amount,
             'target': 'address',  # or okcn, okcom, okex

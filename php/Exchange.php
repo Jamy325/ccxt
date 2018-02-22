@@ -30,7 +30,7 @@ SOFTWARE.
 
 namespace ccxt;
 
-$version = '1.10.1085';
+$version = '1.10.1178';
 
 abstract class Exchange {
 
@@ -222,7 +222,7 @@ abstract class Exchange {
 
     // given a sorted arrays of trades (recent first) and a timeframe builds an array of OHLCV candles
     public static function build_ohlcv ($trades, $since = PHP_INT_MIN, $limits = PHP_INT_MAX, $timeframe = '1m') {
-        $ms = static::parseTimeframe ($timeframe) * 1000;
+        $ms = static::parse_timeframe ($timeframe) * 1000;
         $ohlcvs = [];
         list(/* $timestamp */, /* $open */, $high, $low, $close, $volume) = [0, 1, 2, 3, 4, 5];
 
@@ -435,6 +435,8 @@ abstract class Exchange {
     }
 
     public static function iso8601 ($timestamp) {
+        if (!isset ($timestamp))
+            return $timestamp;
         $result = date ('c', (int) round ($timestamp / 1000));
         $msec = (int) $timestamp % 1000;
         return str_replace ('+', sprintf (".%03d+", $msec), $result);
@@ -625,6 +627,7 @@ abstract class Exchange {
         $this->enableRateLimit          = false;
         $this->last_http_response = null;
         $this->last_json_response = null;
+        $this->last_response_headers = null;
 
         $options = array_replace_recursive ($this->describe(), $options);
 
@@ -722,7 +725,7 @@ abstract class Exchange {
         }
     }
 
-    public function sign($path, $api = 'public', $method = 'GET', $params = array (), $headers = null, $body = null) {
+    public function sign ($path, $api = 'public', $method = 'GET', $params = array (), $headers = null, $body = null) {
         throw new NotSupported ($this->id . ' sign() not implemented yet');
     }
 
@@ -840,24 +843,24 @@ abstract class Exchange {
         // this function is called by curl for each header received
         curl_setopt ($this->curl, CURLOPT_HEADERFUNCTION,
             function ($curl, $header) use (&$response_headers) {
-                $len = strlen ($header);
+                $length = strlen ($header);
                 $header = explode (':', $header, 2);
-                if (count($header) < 2) // ignore invalid headers
-                    return $len;
+                if (count ($header) < 2) // ignore invalid headers
+                    return $length;
                 $name = strtolower (trim ($header[0]));
                 if (!array_key_exists ($name, $response_headers))
                     $response_headers[$name] = [trim ($header[1])];
                 else
                     $response_headers[$name][] = trim ($header[1]);
-                return $len;
+                return $length;
             }
         );
 
         $result = curl_exec ($this->curl);
 
         $this->lastRestRequestTimestamp = $this->milliseconds ();
-
         $this->last_http_response = $result;
+        $this->last_response_headers = $response_headers;
 
         $curl_errno = curl_errno ($this->curl);
         $curl_error = curl_error ($this->curl);
@@ -1243,6 +1246,14 @@ abstract class Exchange {
 
     public function fetchOrder ($id, $symbol = null, $params = array ()) {
         return $this->fetch_order ($id, $symbol, $params);
+    }
+
+    public function fetch_order_trades ($id, $symbol = null, $params = array ()) {
+        throw new NotSupported ($this->id . ' fetch_order_trades() not implemented yet');
+    }
+
+    public function fetchOrderTrades ($id, $symbol = null, $params = array ()) {
+        return $this->fetch_order_trades ($id, $symbol, $params);
     }
 
     public function fetch_orders ($symbol = null, $since = null, $limit = null, $params = array ()) {

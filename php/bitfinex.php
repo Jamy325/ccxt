@@ -22,11 +22,13 @@ class bitfinex extends Exchange {
                 'fetchClosedOrders' => true,
                 'fetchDepositAddress' => true,
                 'fetchFees' => true,
+                'fetchFundingFees' => true,
                 'fetchMyTrades' => true,
                 'fetchOHLCV' => true,
                 'fetchOpenOrders' => true,
                 'fetchOrder' => true,
                 'fetchTickers' => true,
+                'fetchTradingFees' => true,
                 'withdraw' => true,
             ),
             'timeframes' => array (
@@ -286,7 +288,7 @@ class bitfinex extends Exchange {
         // $fees = $this->fetch_funding_fees();
         // $funding = array_replace_recursive ($funding, $fees);
         // return $funding;
-        throw new NotImplemented ($this->id . ' loadFees() not implemented yet');
+        throw new NotSupported ($this->id . ' loadFees() not implemented yet');
     }
 
     public function fetch_fees () {
@@ -444,6 +446,17 @@ class bitfinex extends Exchange {
         $price = floatval ($trade['price']);
         $amount = floatval ($trade['amount']);
         $cost = $price * $amount;
+        $fee = null;
+        if (is_array ($trade) && array_key_exists ('fee_amount', $trade)) {
+            $feeCost = $this->safe_float($trade, 'fee_amount');
+            $feeCurrency = $this->safe_string($trade, 'fee_currency');
+            if (is_array ($this->currencies_by_id) && array_key_exists ($feeCurrency, $this->currencies_by_id))
+                $feeCurrency = $this->currencies_by_id[$feeCurrency]['code'];
+            $fee = array (
+                'cost' => $feeCost,
+                'currency' => $feeCurrency,
+            );
+        }
         return array (
             'id' => (string) $trade['tid'],
             'info' => $trade,
@@ -456,16 +469,20 @@ class bitfinex extends Exchange {
             'price' => $price,
             'amount' => $amount,
             'cost' => $cost,
-            'fee' => null,
+            'fee' => $fee,
         );
     }
 
-    public function fetch_trades ($symbol, $since = null, $limit = null, $params = array ()) {
+    public function fetch_trades ($symbol, $since = null, $limit = 50, $params = array ()) {
         $this->load_markets();
         $market = $this->market ($symbol);
-        $response = $this->publicGetTradesSymbol (array_merge (array (
+        $request = array (
             'symbol' => $market['id'],
-        ), $params));
+            'limit_trades' => $limit,
+        );
+        if ($since !== null)
+            $request['timestamp'] = intval ($since / 1000);
+        $response = $this->publicGetTradesSymbol (array_merge ($request, $params));
         return $this->parse_trades($response, $market, $since, $limit);
     }
 
@@ -599,7 +616,7 @@ class bitfinex extends Exchange {
         ];
     }
 
-    public function fetch_ohlcv ($symbol, $timeframe = '1m', $since = null, $limit = null, $params = array ()) {
+    public function fetch_ohlcv ($symbol, $timeframe = '1m', $since = null, $limit = 100, $params = array ()) {
         $this->load_markets();
         $market = $this->market ($symbol);
         $v2id = 't' . $market['id'];
@@ -607,9 +624,8 @@ class bitfinex extends Exchange {
             'symbol' => $v2id,
             'timeframe' => $this->timeframes[$timeframe],
             'sort' => 1,
+            'limit' => $limit,
         );
-        if ($limit !== null)
-            $request['limit'] = $limit;
         if ($since !== null)
             $request['start'] = $since;
         $request = array_merge ($request, $params);

@@ -128,7 +128,8 @@ class okcoinusd extends Exchange {
                 ),
             ),
             'exceptions' => array (
-                '1009' => '\\ccxt\\OrderNotFound', // for spot markets
+                '1009' => '\\ccxt\\OrderNotFound', // for spot markets, cancelling closed order
+                '1051' => '\\ccxt\\OrderNotFound', // for spot markets, cancelling "just closed" order
                 '20015' => '\\ccxt\\OrderNotFound', // for future markets
                 '1013' => '\\ccxt\\InvalidOrder', // no contract type (PR-1101)
                 '1027' => '\\ccxt\\InvalidOrder', // createLimitBuyOrder(symbol, 0, 0) => Incorrect parameter may exceeded limits
@@ -145,12 +146,20 @@ class okcoinusd extends Exchange {
         $response = $this->webGetMarketsProducts ();
         $markets = $response['data'];
         $result = array ();
+        $futureMarkets = array (
+            'BCH/USD' => true,
+            'BTC/USD' => true,
+            'ETC/USD' => true,
+            'ETH/USD' => true,
+            'LTC/USD' => true,
+        );
         for ($i = 0; $i < count ($markets); $i++) {
             $id = $markets[$i]['symbol'];
-            $uppercase = strtoupper ($id);
-            list ($baseId, $quoteId) = explode ('_', $uppercase);
-            $base = $this->common_currency_code($baseId);
-            $quote = $this->common_currency_code($quoteId);
+            list ($baseId, $quoteId) = explode ('_', $id);
+            $baseIdUppercase = strtoupper ($baseId);
+            $quoteIdUppercase = strtoupper ($quoteId);
+            $base = $this->common_currency_code($baseIdUppercase);
+            $quote = $this->common_currency_code($quoteIdUppercase);
             $symbol = $base . '/' . $quote;
             $precision = array (
                 'amount' => $markets[$i]['maxSizeDigit'],
@@ -189,11 +198,14 @@ class okcoinusd extends Exchange {
                 ),
             ));
             $result[] = $market;
-            if (($this->has['futures']) && ($market['quote'] === 'USDT')) {
+            $futureQuote = ($market['quote'] === 'USDT') ? 'USD' : $market['quote'];
+            $futureSymbol = $market['base'] . '/' . $futureQuote;
+            if (($this->has['futures']) && (is_array ($futureMarkets) && array_key_exists ($futureSymbol, $futureMarkets))) {
                 $result[] = array_merge ($market, array (
                     'quote' => 'USD',
                     'symbol' => $market['base'] . '/USD',
                     'id' => str_replace ('usdt', 'usd', $market['id']),
+                    'quoteId' => str_replace ('usdt', 'usd', $market['quoteId']),
                     'type' => 'future',
                     'spot' => false,
                     'future' => true,
@@ -341,15 +353,15 @@ class okcoinusd extends Exchange {
         $response = $this->privatePostUserinfo ();
         $balances = $response['info']['funds'];
         $result = array ( 'info' => $response );
-        $currencies = is_array ($this->currencies) ? array_keys ($this->currencies) : array ();
-        for ($i = 0; $i < count ($currencies); $i++) {
-            $currency = $currencies[$i];
-            $lowercase = strtolower ($currency);
+        $ids = is_array ($this->currencies_by_id) ? array_keys ($this->currencies_by_id) : array ();
+        for ($i = 0; $i < count ($ids); $i++) {
+            $id = $ids[$i];
+            $code = $this->currencies_by_id[$id]['code'];
             $account = $this->account ();
-            $account['free'] = $this->safe_float($balances['free'], $lowercase, 0.0);
-            $account['used'] = $this->safe_float($balances['freezed'], $lowercase, 0.0);
+            $account['free'] = $this->safe_float($balances['free'], $id, 0.0);
+            $account['used'] = $this->safe_float($balances['freezed'], $id, 0.0);
             $account['total'] = $this->sum ($account['free'], $account['used']);
-            $result[$currency] = $account;
+            $result[$code] = $account;
         }
         return $this->parse_balance($result);
     }
@@ -421,7 +433,7 @@ class okcoinusd extends Exchange {
         if ($status === 0)
             return 'open';
         if ($status === 1)
-            return 'partial';
+            return 'open';
         if ($status === 2)
             return 'closed';
         if ($status === 4)
@@ -576,13 +588,13 @@ class okcoinusd extends Exchange {
         return $this->filter_by($orders, 'status', 'closed');
     }
 
-    public function withdraw ($currency, $amount, $address, $tag = null, $params = array ()) {
+    public function withdraw ($code, $amount, $address, $tag = null, $params = array ()) {
         $this->load_markets();
-        $lowercase = strtolower ($currency) . '_usd';
+        $currency = $this->currency ($code);
         // if ($amount < 0.01)
         //     throw new ExchangeError ($this->id . ' withdraw() requires $amount > 0.01');
         $request = array (
-            'symbol' => $lowercase,
+            'symbol' => $currency['id'],
             'withdraw_address' => $address,
             'withdraw_amount' => $amount,
             'target' => 'address', // or okcn, okcom, okex

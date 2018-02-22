@@ -73,6 +73,7 @@ module.exports = class Exchange {
                 'createDepositAddress': false,
                 'createOrder': true,
                 'deposit': false,
+                'editOrder': 'emulated',
                 'fetchBalance': true,
                 'fetchBidsAsks': false,
                 'fetchClosedOrders': false,
@@ -121,8 +122,8 @@ module.exports = class Exchange {
                 'funding': {
                     'tierBased': undefined,
                     'percentage': undefined,
-                    'withdraw': undefined,
-                    'deposit': undefined,
+                    'withdraw': {},
+                    'deposit': {},
                 },
             },
             'parseJsonResponse': true, // whether a reply is required to be in JSON or not
@@ -164,8 +165,9 @@ module.exports = class Exchange {
         this.proxy = ''
         this.origin = '*' // CORS origin
 
-        this.iso8601          = timestamp => new Date (timestamp).toISOString ()
+        this.iso8601          = timestamp => ((typeof timestamp === 'undefined') ? timestamp : new Date (timestamp).toISOString ())
         this.parse8601        = x => Date.parse (((x.indexOf ('+') >= 0) || (x.slice (-1) === 'Z')) ? x : (x + 'Z'))
+        this.parseDate        = x => ((x.indexOf ('GMT') >= 0) ? Date.parse (x) : this.parse8601 (x))
         this.microseconds     = () => now () * 1000 // TODO: utilize performance.now for that purpose
         this.seconds          = () => Math.floor (now () / 1000)
 
@@ -195,6 +197,7 @@ module.exports = class Exchange {
 
         this.last_http_response = undefined
         this.last_json_response = undefined
+        this.last_response_headers = undefined
 
         this.arrayConcat = (a, b) => a.concat (b)
 
@@ -459,13 +462,20 @@ module.exports = class Exchange {
             let jsonRequired = this.parseJsonResponse && !this.skipJsonOnStatusCodes.includes (response.status)
             let json = jsonRequired ? this.parseJson (response, responseBody, url, method) : undefined
 
-            if (this.verbose)
-                console.log ("handleRestResponse:\n", this.id, method, url, response.status, response.statusText, "\nResponse:\n", requestHeaders, "\n", responseBody, "\n")
+            let responseHeaders = {}
+            response.headers.forEach ((value, key) => {
+                key = key.split ('-').map (word => capitalize (word)).join ('-')
+                responseHeaders[key] = value;
+            })
 
+            this.last_response_headers = responseHeaders
             this.last_http_response = responseBody // FIXME: for those classes that haven't switched to handleErrors yet
             this.last_json_response = json         // FIXME: for those classes that haven't switched to handleErrors yet
 
-            const args = [ response.status, response.statusText, url, method, requestHeaders, responseBody, json ]
+            if (this.verbose)
+                console.log ("handleRestResponse:\n", this.id, method, url, response.status, response.statusText, "\nResponse:\n", responseHeaders, "\n", responseBody, "\n")
+
+            const args = [ response.status, response.statusText, url, method, responseHeaders, responseBody, json ]
             this.handleErrors (...args)
             this.defaultErrorHandler (response, responseBody, url, method)
 
@@ -514,7 +524,7 @@ module.exports = class Exchange {
 
     async loadMarkets (reload = false) {
         if (!reload && this.markets) {
-            if (!this.marketsById) {
+            if (!this.markets_by_id) {
                 return this.setMarkets (this.markets)
             }
             return this.markets
@@ -611,7 +621,8 @@ module.exports = class Exchange {
     }
 
     marketId (symbol) {
-        return this.market (symbol).id || symbol
+        let market = this.market (symbol)
+        return (typeof market !== 'undefined' ? market['id'] : symbol)
     }
 
     marketIds (symbols) {
@@ -679,11 +690,11 @@ module.exports = class Exchange {
         return Object.values (this.orders).filter (order => (order['status'] === 'open')).reduce ((total, order) => {
             let symbol = order['symbol'];
             let market = this.markets[symbol];
-            let amount = order['remaining']
+            let remaining = order['remaining']
             if (currency === market['base'] && order['side'] === 'sell') {
-                return total + amount
+                return total + remaining
             } else if (currency === market['quote'] && order['side'] === 'buy') {
-                return total + (order['cost'] || (order['price'] * amount))
+                return total + (order['price'] * remaining)
             } else {
                 return total
             }
@@ -749,7 +760,7 @@ module.exports = class Exchange {
     }
 
     parseTrades (trades, market = undefined, since = undefined, limit = undefined) {
-        let result = Object.values (trades).map (trade => this.parseTrade (trade, market))
+        let result = Object.values (trades || []).map (trade => this.parseTrade (trade, market))
         result = sortBy (result, 'timestamp', true)
         return this.filterBySinceLimit (result, since, limit)
     }

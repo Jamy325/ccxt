@@ -3,7 +3,7 @@
 //  ---------------------------------------------------------------------------
 
 const Exchange = require ('./base/Exchange');
-const { NotImplemented, DDoSProtection, AuthenticationError, ExchangeError, InsufficientFunds, NotSupported, InvalidOrder, OrderNotFound, InvalidNonce } = require ('./base/errors');
+const { NotSupported, DDoSProtection, AuthenticationError, ExchangeError, InsufficientFunds, InvalidOrder, OrderNotFound, InvalidNonce } = require ('./base/errors');
 
 //  ---------------------------------------------------------------------------
 
@@ -23,11 +23,13 @@ module.exports = class bitfinex extends Exchange {
                 'fetchClosedOrders': true,
                 'fetchDepositAddress': true,
                 'fetchFees': true,
+                'fetchFundingFees': true,
                 'fetchMyTrades': true,
                 'fetchOHLCV': true,
                 'fetchOpenOrders': true,
                 'fetchOrder': true,
                 'fetchTickers': true,
+                'fetchTradingFees': true,
                 'withdraw': true,
             },
             'timeframes': {
@@ -287,7 +289,7 @@ module.exports = class bitfinex extends Exchange {
         // const fees = await this.fetchFundingFees ();
         // funding = this.deepExtend (funding, fees);
         // return funding;
-        throw new NotImplemented (this.id + ' loadFees() not implemented yet');
+        throw new NotSupported (this.id + ' loadFees() not implemented yet');
     }
 
     async fetchFees () {  // this can be removed since it is now dealt with in the base class
@@ -445,6 +447,17 @@ module.exports = class bitfinex extends Exchange {
         let price = parseFloat (trade['price']);
         let amount = parseFloat (trade['amount']);
         let cost = price * amount;
+        let fee = undefined;
+        if ('fee_amount' in trade) {
+            let feeCost = this.safeFloat (trade, 'fee_amount');
+            let feeCurrency = this.safeString (trade, 'fee_currency');
+            if (feeCurrency in this.currencies_by_id)
+                feeCurrency = this.currencies_by_id[feeCurrency]['code'];
+            fee = {
+                'cost': feeCost,
+                'currency': feeCurrency,
+            };
+        }
         return {
             'id': trade['tid'].toString (),
             'info': trade,
@@ -457,16 +470,20 @@ module.exports = class bitfinex extends Exchange {
             'price': price,
             'amount': amount,
             'cost': cost,
-            'fee': undefined,
+            'fee': fee,
         };
     }
 
-    async fetchTrades (symbol, since = undefined, limit = undefined, params = {}) {
+    async fetchTrades (symbol, since = undefined, limit = 50, params = {}) {
         await this.loadMarkets ();
         let market = this.market (symbol);
-        let response = await this.publicGetTradesSymbol (this.extend ({
+        let request = {
             'symbol': market['id'],
-        }, params));
+            'limit_trades': limit,
+        };
+        if (typeof since !== 'undefined')
+            request['timestamp'] = parseInt (since / 1000);
+        let response = await this.publicGetTradesSymbol (this.extend (request, params));
         return this.parseTrades (response, market, since, limit);
     }
 
@@ -600,7 +617,7 @@ module.exports = class bitfinex extends Exchange {
         ];
     }
 
-    async fetchOHLCV (symbol, timeframe = '1m', since = undefined, limit = undefined, params = {}) {
+    async fetchOHLCV (symbol, timeframe = '1m', since = undefined, limit = 100, params = {}) {
         await this.loadMarkets ();
         let market = this.market (symbol);
         let v2id = 't' + market['id'];
@@ -608,9 +625,8 @@ module.exports = class bitfinex extends Exchange {
             'symbol': v2id,
             'timeframe': this.timeframes[timeframe],
             'sort': 1,
+            'limit': limit,
         };
-        if (typeof limit !== 'undefined')
-            request['limit'] = limit;
         if (typeof since !== 'undefined')
             request['start'] = since;
         request = this.extend (request, params);

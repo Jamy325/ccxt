@@ -238,7 +238,7 @@ class livecoin extends Exchange {
     public function fetch_fees ($params = array ()) {
         $tradingFees = $this->fetch_trading_fees($params);
         return array_merge ($tradingFees, array (
-            'withdraw' => 0.0,
+            'withdraw' => array (),
         ));
     }
 
@@ -562,6 +562,8 @@ class livecoin extends Exchange {
                         throw new InvalidOrder ($this->id . ' => Unable to block funds ' . $this->json ($response));
                     } else if ($error === 503) {
                         throw new ExchangeNotAvailable ($this->id . ' => Exchange is not available ' . $this->json ($response));
+                    } else if ($error === 429) {
+                        throw new DDoSProtection ($this->id . ' => Too many requests' . $this->json ($response));
                     } else {
                         throw new ExchangeError ($this->id . ' ' . $this->json ($response));
                     }

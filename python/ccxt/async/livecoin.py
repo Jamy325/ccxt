@@ -12,6 +12,7 @@ from ccxt.base.errors import NotSupported
 from ccxt.base.errors import AuthenticationError
 from ccxt.base.errors import InvalidOrder
 from ccxt.base.errors import OrderNotFound
+from ccxt.base.errors import DDoSProtection
 from ccxt.base.errors import ExchangeNotAvailable
 
 
@@ -237,7 +238,7 @@ class livecoin (Exchange):
     async def fetch_fees(self, params={}):
         tradingFees = await self.fetch_trading_fees(params)
         return self.extend(tradingFees, {
-            'withdraw': 0.0,
+            'withdraw': {},
         })
 
     async def fetch_trading_fees(self, params={}):
@@ -532,6 +533,8 @@ class livecoin (Exchange):
                         raise InvalidOrder(self.id + ': Unable to block funds ' + self.json(response))
                     elif error == 503:
                         raise ExchangeNotAvailable(self.id + ': Exchange is not available ' + self.json(response))
+                    elif error == 429:
+                        raise DDoSProtection(self.id + ': Too many requests' + self.json(response))
                     else:
                         raise ExchangeError(self.id + ' ' + self.json(response))
             raise ExchangeError(self.id + ' ' + body)
