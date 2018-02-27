@@ -412,7 +412,7 @@ Below is a detailed description of each of the base exchange properties:
 
 -  ``has``: This is an associative array of exchange capabilities (e.g ``fetchTickers``, ``fetchOHLCV`` or ``CORS``).
 
--  ``timeframes``: An associative array of timeframes, supported by the fetchOHLCV method of the exchange. This is only populated when ``hasFetchTickers`` property is true.
+-  ``timeframes``: An associative array of timeframes, supported by the fetchOHLCV method of the exchange. This is only populated when ``has['fetchTickers']`` property is true.
 
 -  ``timeout``: A timeout in milliseconds for a request-response roundtrip (default timeout is 10000 ms = 10 seconds). You should always set it to a reasonable value, hanging forever with no timeout is not your option, for sure.
 
@@ -1211,6 +1211,8 @@ A price ticker contains statistics for a particular market/symbol for some perio
 
 Timestamp and datetime are both Universal Time Coordinated (UTC).
 
+Although some exchanges do mix-in orderbook's top bid/ask prices into their tickers (and some even top bid/asks volumes) you should not treat ticker as a ``fetchOrderBook`` replacement. The main purpose of a ticker is to serve statistical data, as such, treat it as "live 24h OHLCV". It is known that exchanges discourage frequent ``fetchTicker`` requests by imposing stricter rate limits on these queries. If you need a unified way to access bid/asks you should use ``fetchL[123]OrderBook`` family instead.
+
 Individually By Symbol
 ~~~~~~~~~~~~~~~~~~~~~~
 
@@ -1297,7 +1299,7 @@ OHLCV Candlestick Charts
 
     - this is under heavy development right now, contributions appreciated
 
-Most exchanges have endpoints for fetching OHLCV data, but some of them don't. The exchange boolean (true/false) property named ``hasFetchOHLCV`` indicates whether the exchange supports candlestick data series or not.
+Most exchanges have endpoints for fetching OHLCV data, but some of them don't. The exchange boolean (true/false) property named ``has['fetchOHLCV']`` indicates whether the exchange supports candlestick data series or not.
 
 The ``fetchOHLCV`` method is declared in the following way:
 
@@ -1324,7 +1326,7 @@ You can call the unified ``fetchOHLCV`` / ``fetch_ohlcv`` method to get the list
 
     # Python
     import time
-    if exchange.hasFetchOHLCV:
+    if exchange.has['fetchOHLCV']:
         for symbol in exchange.markets:
             time.sleep (exchange.rateLimit / 1000) # time.sleep wants seconds
             print (symbol, exchange.fetch_ohlcv (symbol, '1d')) # one day
@@ -1332,13 +1334,13 @@ You can call the unified ``fetchOHLCV`` / ``fetch_ohlcv`` method to get the list
 .. code:: php
 
     // PHP
-    if ($exchange->hasFetchOHLCV)
+    if ($exchange->has['fetchOHLCV'])
         foreach ($exchange->markets as $symbol => $market) {
             usleep ($exchange.rateLimit * 1000); // usleep wants microseconds
             var_dump ($exchange->fetch_ohlcv ($symbol, '1M')); // one month
         }
 
-To get the list of available timeframes for your exchange see the ``timeframes`` property. Note that it is only populated when ``hasFetchTickers`` is true as well.
+To get the list of available timeframes for your exchange see the ``timeframes`` property. Note that it is only populated when ``has['fetchTickers']`` is true as well.
 
 **There's a limit on how far back in time your requests can go.** Most of exchanges will not allow to query detailed candlestick history (like those for 1-minute and 5-minute timeframes) too far in the past. They usually keep a reasonable amount of most recent candles, like 1000 last candles for any timeframe is more than enough for most of needs. You can work around that limitation by continuously fetching (aka *REST polling*) latest OHLCVs and storing them in a CSV file or in a database.
 
@@ -1357,6 +1359,13 @@ The fetchOHLCV method shown above returns a list (a flat array) of OHLCV candles
         ],
         ...
     ]
+
+OHLCV Emulation
+~~~~~~~~~~~~~~~
+
+Some exchanges don't offer any OHLCV method, and for those, the ccxt library will emulate OHLCV candles from `Public Trades <https://github.com/ccxt/ccxt/wiki/Manual#trades-executions-transactions>`__. In that case you will see ``exchange.has['fetchOHLCV'] = 'emulated'``. However, because the trade history is usually very limited, the emulated fetchOHLCV methods cover most recent info only and should only be used as a fallback, when no other option is available.
+
+**WARNING: the fetchOHLCV emulations is experimental!**
 
 Trades, Executions, Transactions
 --------------------------------
@@ -1675,6 +1684,41 @@ In most cases the ``.orders`` cache will work transparently for the user. Most o
 
 *Note: the order cache functionality is to be reworked soon to obtain the order statuses from private trades history, where available. This is a work in progress, aimed at adding full-featured support for order fees, costs and other info. More about it here: https://github.com/ccxt/ccxt/issues/569*.
 
+Purging Cached Orders
+^^^^^^^^^^^^^^^^^^^^^
+
+With some long-running instances it might be critical to free up used resources when they aren't needed anymore. Because in active trading the ``.orders`` cache can grow pretty big, the ccxt library offers the ``purgeCachedOrders/purge_cached_orders`` method for clearing old non-open orders from cache where ``(order['timestamp'] < before) && (order['status'] != 'open')`` and freeing used memory for other purposes. The purging method accepts one single argument named ``before``:
+
+.. code:: javascript
+
+    // JavaScript
+
+    // keep last 24 hours of history in cache
+    before = exchange.milliseconds () - 24 * 60 * 60 * 1000
+
+    // purge all closed and canceled orders "older" or issued "before" that time
+    exchange.purgeCachedOrders (before)
+
+.. code:: python
+
+    # Python
+
+    # keep last hour of history in cache
+    before = exchange.milliseconds () - 1 * 60 * 60 * 1000
+
+    # purge all closed and canceled orders "older" or issued "before" that time
+    exchange.purge_cached_orders (before)
+
+.. code:: php
+
+    // PHP
+
+    // keep last 24 hours of history in cache
+    $before = $exchange->milliseconds () - 24 * 60 * 60 * 1000;
+
+    // purge all closed and canceled orders "older" or issued "before" that time
+    $exchange->purge_cached_orders ($before);
+
 By Order Id
 ^^^^^^^^^^^
 
@@ -1765,7 +1809,7 @@ Most of methods returning orders within ccxt unified API will usually yield an o
     {
         'id':        '12345-67890:09876/54321', // string
         'datetime':  '2017-08-17 12:42:48.000', // ISO8601 datetime with milliseconds
-        'timestamp':  1502962946216, // Unix timestamp in milliseconds
+        'timestamp':  1502962946216, // order placing/opening Unix timestamp in milliseconds
         'status':    'open',         // 'open', 'closed', 'canceled'
         'symbol':    'ETH/BTC',      // symbol
         'type':      'limit',        // 'market', 'limit'
@@ -1903,8 +1947,8 @@ Personal Trades
     - there may be some issues and missing implementations here and there
     - contributions, pull requests and feedback appreciated
 
-Orders And Trades Relationship
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+How Orders Are Related To Trades
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 A trade is also often called ``a fill``. Each trade is a result of order execution. Note, that orders and trades have a one-to-many relationship: an execution of one order may result in several trades. However, when one order matches another opposing order, the pair of two matching orders yields one trade. Thus, when an order matches multiple opposing orders, this yields multiple trades, one trade per each pair of matched orders.
 
@@ -1944,7 +1988,7 @@ As the price and amount of the incoming sell (ask) order cover more than one bid
 
 1. Order ``b`` is matched against the incoming sell because their prices intersect. Their volumes *"mutually annihilate"* each other, so, the bidder gets 100 for a price of 0.800. The seller (asker) will have his sell order partially filled by bid volume of 100.
 
-2. A trade is generated for the order ``b`` against the incoming sell order. That trade *"fills"* the entire order ``b`` and most of the sell order. One trade is generated pear each pair of matched orders, whether the amount was filled completely or partially. In this cases the amount of 100 fills order ``b`` completely (closed the order ``b``), and also fills the selling order partially (leaves it open in the orderbook).
+2. A trade is generated for the order ``b`` against the incoming sell order. That trade *"fills"* the entire order ``b`` and most of the sell order. One trade is generated pear each pair of matched orders, whether the amount was filled completely or partially. In this example the amount of 100 fills order ``b`` completely (closed the order ``b``) and also fills the selling order partially (leaves it open in the orderbook).
 
 3. Order ``b`` now has a status of ``closed`` and a filled volume of 100. It contains one trade against the selling order. The selling order has ``open`` status and a filled volume of 100. It contains one trade against order ``b``. Thus each order has just one fill-trade so far.
 
@@ -2186,54 +2230,78 @@ Below is an outline of exception inheritance hierarchy:
         |
         +---+ InvalidNonce
 
--  ``BaseError``: Generic error class for all sorts of errors, including accessibility and request/response mismatch. Users should catch this exception at the very least, if no error differentiation is required.
+The ``BaseError`` class is a generic error class for all sorts of errors, including accessibility and request/response mismatch. Users should catch this exception at the very least, if no error differentiation is required.
 
--  ``ExchangeError``: This exception is thrown when an exchange server replies with an error in JSON. Possible reasons:
+ExchangeError
+-------------
 
-   -  endpoint is switched off by the exchange
-   -  symbol not found on the exchange
-   -  required parameter is missing
-   -  the format of parameters is incorrect
-   -  an exchange replies with an unclear answer
+This exception is thrown when an exchange server replies with an error in JSON. Possible reasons:
 
-   Other exceptions derived from ``ExchangeError``:
+-  endpoint is switched off by the exchange
+-  symbol not found on the exchange
+-  required parameter is missing
+-  the format of parameters is incorrect
+-  an exchange replies with an unclear answer
 
-   -  ``NotSupported``: This exception is raised if the endpoint is not offered/not supported by the exchange API.
-   -  ``AuthenticationError``: Raised when an exchange requires one of the API credentials that you've missed to specify, or when there's a mistake in the keypair or an outdated nonce. Most of the time you need ``apiKey`` and ``secret``, sometimes you also need ``uid`` and/or ``password``.
-   -  ``InsufficientFunds``: This exception is raised when you don't have enough currency on your account balance to place an order.
-   -  ``InvalidOrder``: This exception is the base class for all exceptions related to the unified order API.
-   -  ``OrderNotFound``: Raised when you are trying to fetch or cancel a non-existent order.
+Other exceptions derived from ``ExchangeError``:
 
--  ``NetworkError``: All errors related to networking are usually recoverable, meaning that networking problems, traffic congestion, unavailability is usually time-dependent. Making a retry later is usually enough to recover from a NetworkError, but if it doesn't go away, then it may indicate some persistent problem with the exchange or with your connection.
+-  ``NotSupported``: This exception is raised if the endpoint is not offered/not supported by the exchange API.
+-  ``AuthenticationError``: Raised when an exchange requires one of the API credentials that you've missed to specify, or when there's a mistake in the keypair or an outdated nonce. Most of the time you need ``apiKey`` and ``secret``, sometimes you also need ``uid`` and/or ``password``.
+-  ``InsufficientFunds``: This exception is raised when you don't have enough currency on your account balance to place an order.
+-  ``InvalidOrder``: This exception is the base class for all exceptions related to the unified order API.
+-  ``OrderNotFound``: Raised when you are trying to fetch or cancel a non-existent order.
 
-   -  ``DDoSProtection``: This exception is thrown whenever Cloudflare or Incapsula rate limiter restrictions are enforced per user or region/location. The ccxt library does a case-insensitive search in the response received from the exchange for one of the following keywords:
-   -  ``cloudflare``
-   -  ``incapsula``
-   -  ``RequestTimeout``: This exception is raised when the connection with the exchange fails or data is not fully received in a specified amount of time. This is controlled by the ``timeout`` option. When a ``RequestTimeout`` is raised, the user doesn't know the outcome of a request (whether it was accepted by the exchange server or not). Thus it's advised to handle this type of exception in the following manner:
-   -  for fetching requests it is safe to retry the call
-   -  for a request to ``cancelOrder(id, symbol)`` a user is required to retry the same call the second time. If instead of a retry a user calls a ``fetchOrder()``, ``fetchOrders()``, ``fetchOpenOrders()`` or ``fetchClosedOrders()`` right away without a retry to call ``cancelOrder()``, this may cause the ```.orders`` cache <#orders-cache>`__ to fall out of sync. A subsequent retry will return one of the following possible results:
+NetworkError
+------------
 
-      -  a request is completed successfully, meaning the order has been properly canceled now
-      -  an ``OrderNotFound`` exception is raised, which means the order was either already canceled on the first attempt or has been executed (filled and closed) in the meantime between the two attempts. Note, that the order will still have an ``'open'`` status in the ``.orders`` cache. To determine the actual order status you'll need to call ``fetchOrder(id)`` to update the cache properly (where available from the exchange). If the ``fetchOrder()`` method is ``'emulated'`` the ccxt library will mark the order as ``'closed'``. The user has to call ``fetchBalance()`` and set the order status to ``'canceled'`` manually if the balance hasn't changed (a trade didn't not occur).
+All errors related to networking are usually recoverable, meaning that networking problems, traffic congestion, unavailability is usually time-dependent. Making a retry later is usually enough to recover from a NetworkError, but if it doesn't go away, then it may indicate some persistent problem with the exchange or with your connection.
 
-   -  if a request to ``createOrder()`` fails with a ``RequestTimeout`` the user should:
+DDoSProtection
+~~~~~~~~~~~~~~
 
-      -  update the ``.orders`` cache with a call to ``fetchOrders()``, ``fetchOpenOrders()``, ``fetchClosedOrders()`` to check if the request to place the order has succeeded and the order is now open
-      -  if the order is not ``'open'`` the user should ``fetchBalance()`` to check if the balance has changed since the order was created on the first run, then filled and closed by the time of the second check. Note that ``fetchBalance()`` relies on the ``.orders`` cache for `balance inference <#balance-inference>`__ and thus should only be called after updating the cache!
+This exception is thrown whenever Cloudflare or Incapsula rate limiter restrictions are enforced per user or region/location. The ccxt library does a case-insensitive search in the response received from the exchange for one of the following keywords:
 
-   -  ``ExchangeNotAvailable``: The ccxt library throws this error if it detects any of the following keywords in response:
-   -  ``offline``
-   -  ``unavailable``
-   -  ``busy``
-   -  ``retry``
-   -  ``wait``
-   -  ``maintain``
-   -  ``maintenance``
-   -  ``maintenancing``
-   -  ``InvalidNonce``: Raised when your nonce is less than the previous nonce used with your keypair, as described in the `Authentication <https://github.com/ccxt/ccxt/wiki/Manual#authentication>`__ section. This type of exception is thrown in these cases (in order of precedence for checking):
-   -  Your API keys are not fresh and new (have been used with some different software or script already).
-   -  The same keypair is shared across multiple instances of the exchange class (for example, in a multithreaded environment or in separate processes).
-   -  Your system clock is out of synch. System time should be synched with UTC in a non-DST timezone at a rate of once every ten minutes or even more frequently because of the clock drifting. **Enabling time synch in Windows is usually not enough!** You have to set it up with the OS Registry (Google *"time synch frequency"* for your OS).
+-  ``cloudflare``
+-  ``incapsula``
+
+RequestTimeout
+~~~~~~~~~~~~~~
+
+This exception is raised when the connection with the exchange fails or data is not fully received in a specified amount of time. This is controlled by the ``timeout`` option. When a ``RequestTimeout`` is raised, the user doesn't know the outcome of a request (whether it was accepted by the exchange server or not).
+
+Thus it's advised to handle this type of exception in the following manner:
+
+-  for fetching requests it is safe to retry the call
+-  for a request to ``cancelOrder`` a user is required to retry the same call the second time. If instead of a retry a user calls a ``fetchOrder``, ``fetchOrders``, ``fetchOpenOrders`` or ``fetchClosedOrders`` right away without a retry to call ``cancelOrder``, this may cause the ```.orders`` cache <#orders-cache>`__ to fall out of sync. A subsequent retry to ``cancelOrder`` will return one of the following possible results:
+-  a request is completed successfully, meaning the order has been properly canceled now
+-  an ``OrderNotFound`` exception is raised, which means the order was either already canceled on the first attempt or has been executed (filled and closed) in the meantime between the two attempts. Note, that the order will still have an ``'open'`` status in the ``.orders`` cache. To determine the actual order status you'll need to call ``fetchOrder`` to update the cache properly (where available from the exchange). If the ``fetchOrder`` method is ``'emulated'`` the ccxt library will mark the order as ``'closed'``. The user has to call ``fetchBalance`` and set the order status to ``'canceled'`` manually if the balance hasn't changed (a trade didn't not occur).
+-  if a request to ``createOrder`` fails with a ``RequestTimeout`` the user should:
+-  update the ``.orders`` cache with a call to ``fetchOrders``, ``fetchOpenOrders``, ``fetchClosedOrders`` to check if the request to place the order has succeeded and the order is now open
+-  if the order is not ``'open'`` the user should ``fetchBalance`` to check if the balance has changed since the order was created on the first run and then was filled and closed by the time of the second check. Note that ``fetchBalance`` relies on the ``.orders`` cache for `balance inference <#balance-inference>`__ and thus should only be called after updating the cache!
+
+ExchangeNotAvailable
+~~~~~~~~~~~~~~~~~~~~
+
+The ccxt library throws this error if it detects any of the following keywords in response:
+
+-  ``offline``
+-  ``unavailable``
+-  ``busy``
+-  ``retry``
+-  ``wait``
+-  ``maintain``
+-  ``maintenance``
+-  ``maintenancing``
+
+InvalidNonce
+~~~~~~~~~~~~
+
+Raised when your nonce is less than the previous nonce used with your keypair, as described in the `Authentication <https://github.com/ccxt/ccxt/wiki/Manual#authentication>`__ section. This type of exception is thrown in these cases (in order of precedence for checking):
+
+-  You are not rate-limiting your requests or sending too many of them too often.
+-  Your API keys are not fresh and new (have been used with some different software or script already).
+-  The same keypair is shared across multiple instances of the exchange class (for example, in a multithreaded environment or in separate processes).
+-  Your system clock is out of synch. System time should be synched with UTC in a non-DST timezone at a rate of once every ten minutes or even more frequently because of the clock drifting. **Enabling time synch in Windows is usually not enough!** You have to set it up with the OS Registry (Google *"time synch frequency"* for your OS).
 
 Troubleshooting
 ===============
