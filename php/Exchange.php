@@ -30,7 +30,7 @@ SOFTWARE.
 
 namespace ccxt;
 
-$version = '1.10.1228';
+$version = '1.10.1270';
 
 abstract class Exchange {
 
@@ -64,6 +64,7 @@ abstract class Exchange {
         'btcchina',
         'btcexchange',
         'btcmarkets',
+        'btctradeim',
         'btctradeua',
         'btcturk',
         'btcx',
@@ -74,6 +75,7 @@ abstract class Exchange {
         'chilebit',
         'cobinhood',
         'coincheck',
+        'coinegg',
         'coinexchange',
         'coinfloor',
         'coingi',
@@ -81,6 +83,7 @@ abstract class Exchange {
         'coinmate',
         'coinsecure',
         'coinspot',
+        'coolcoin',
         'cryptopia',
         'dsx',
         'exmo',
@@ -441,6 +444,14 @@ abstract class Exchange {
         $result = date ('c', (int) round ($timestamp / 1000));
         $msec = (int) $timestamp % 1000;
         return str_replace ('+', sprintf (".%03d+", $msec), $result);
+    }
+
+    public static function parse_date ($timestamp) {
+        if (!isset ($timestamp))
+            return $timestamp;
+        if (strstr ($timestamp, 'GMT'))
+            return strtotime ($timestamp) * 1000;
+        return static::parse8601 ($timestamp);
     }
 
     public static function parse8601 ($timestamp) {
@@ -1031,7 +1042,8 @@ abstract class Exchange {
     }
 
     public function parse_ohlcv ($ohlcv, $market = null, $timeframe = 60, $since = null, $limit = null) {
-        return $ohlcv;
+        return (gettype ($ohlcv) === 'array' && count (array_filter (array_keys ($ohlcv), 'is_string')) == 0) ?
+            array_slice ($ohlcv, 0, 6) : $ohlcv;
     }
 
     public function parseOHLCV ($ohlcv, $market = null, $timeframe = 60, $since = null, $limit = null) {
@@ -1510,6 +1522,35 @@ abstract class Exchange {
                    isset ($this->currencies) &&
                    isset ($this->currencies[$code])) ?
                         $this->currencies[$code] : $code;
+    }
+
+    public function find_market ($string) {
+
+        if (!isset ($this->markets))
+            throw new ExchangeError ($this->id . ' markets not loaded');
+
+        if (gettype ($string) === 'string') {
+
+            if (isset ($this->markets_by_id[$string]))
+                return $this->markets_by_id[$string];
+
+            if (isset ($this->markets[$string]))
+                return $this->markets[$string];
+        }
+
+        return $string;
+
+    }
+
+    public function find_symbol ($string, $market = null) {
+
+        if (!isset ($market))
+            $market = $this->find_market ($string);
+
+        if (gettype ($market) === 'array' && count (array_filter (array_keys ($market), 'is_string')) !== 0)
+            return $market['symbol'];
+
+        return $string;
     }
 
     public function market ($symbol) {

@@ -319,6 +319,7 @@ declare module 'ccxt' {
     export class btcchina extends Exchange {}
     export class btcexchange extends btcturk {}
     export class btcmarkets extends Exchange {}
+    export class btctradeim extends coinegg {}
     export class btctradeua extends Exchange {}
     export class btcturk extends Exchange {}
     export class btcx extends Exchange {}
@@ -329,6 +330,7 @@ declare module 'ccxt' {
     export class chilebit extends foxbit {}
     export class cobinhood extends Exchange {}
     export class coincheck extends Exchange {}
+    export class coinegg extends Exchange {}
     export class coinexchange extends Exchange {}
     export class coinfloor extends Exchange {}
     export class coingi extends Exchange {}
@@ -336,6 +338,7 @@ declare module 'ccxt' {
     export class coinmate extends Exchange {}
     export class coinsecure extends Exchange {}
     export class coinspot extends Exchange {}
+    export class coolcoin extends coinegg {}
     export class cryptopia extends Exchange {}
     export class dsx extends liqui {}
     export class exmo extends Exchange {}
