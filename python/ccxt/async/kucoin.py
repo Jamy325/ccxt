@@ -177,10 +177,26 @@ class kucoin (Exchange):
                     'deposit': {},
                 },
             },
+            # exchange-specific options
+            'options': {
+                'timeDifference': 0,  # the difference between system clock and Kucoin clock
+                'adjustForTimeDifference': False,  # controls the adjustment logic upon instantiation
+            },
         })
+
+    def nonce(self):
+        return self.milliseconds() - self.options['timeDifference']
+
+    async def load_time_difference(self):
+        response = await self.publicGetOpenTick()
+        after = self.milliseconds()
+        self.options['timeDifference'] = int(after - response['timestamp'])
+        return self.options['timeDifference']
 
     async def fetch_markets(self):
         response = await self.publicGetMarketOpenSymbols()
+        if self.options['adjustForTimeDifference']:
+            await self.load_time_difference()
         markets = response['data']
         result = []
         for i in range(0, len(markets)):
@@ -699,7 +715,7 @@ class kucoin (Exchange):
         if api == 'private':
             self.check_required_credentials()
             # their nonce is always a calibrated synched milliseconds-timestamp
-            nonce = self.milliseconds()
+            nonce = self.nonce()
             queryString = ''
             nonce = str(nonce)
             if query:

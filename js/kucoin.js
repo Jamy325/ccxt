@@ -167,11 +167,29 @@ module.exports = class kucoin extends Exchange {
                     'deposit': {},
                 },
             },
+            // exchange-specific options
+            'options': {
+                'timeDifference': 0, // the difference between system clock and Kucoin clock
+                'adjustForTimeDifference': false, // controls the adjustment logic upon instantiation
+            },
         });
+    }
+
+    nonce () {
+        return this.milliseconds () - this.options['timeDifference'];
+    }
+
+    async loadTimeDifference () {
+        const response = await this.publicGetOpenTick ();
+        const after = this.milliseconds ();
+        this.options['timeDifference'] = parseInt (after - response['timestamp']);
+        return this.options['timeDifference'];
     }
 
     async fetchMarkets () {
         let response = await this.publicGetMarketOpenSymbols ();
+        if (this.options['adjustForTimeDifference'])
+            await this.loadTimeDifference ();
         let markets = response['data'];
         let result = [];
         for (let i = 0; i < markets.length; i++) {
@@ -736,7 +754,7 @@ module.exports = class kucoin extends Exchange {
         if (api === 'private') {
             this.checkRequiredCredentials ();
             // their nonce is always a calibrated synched milliseconds-timestamp
-            let nonce = this.milliseconds ();
+            let nonce = this.nonce ();
             let queryString = '';
             nonce = nonce.toString ();
             if (Object.keys (query).length) {
