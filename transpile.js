@@ -58,6 +58,7 @@ const commonRegexes = [
     [ /\.parseOHLCV\s/g, '.parse_ohlcv'],
     [ /\.parseDate\s/g, '.parse_date'],
     [ /\.parseTicker\s/g, '.parse_ticker'],
+    [ /\.parseTimeframe\s/g, '.parse_timeframe'],
     [ /\.parseTradesData\s/g, '.parse_trades_data'],
     [ /\.parseTrades\s/g, '.parse_trades'],
     [ /\.parseTrade\s/g, '.parse_trade'],
@@ -67,6 +68,7 @@ const commonRegexes = [
     [ /\.parseOrders\s/g, '.parse_orders'],
     [ /\.parseOrderStatus\s/g, '.parse_order_status'],
     [ /\.parseOrder\s/g, '.parse_order'],
+    [ /\.filterByArray\s/g, '.filter_by_array'],
     [ /\.filterBySymbolSinceLimit\s/g, '.filter_by_symbol_since_limit'],
     [ /\.filterBySinceLimit\s/g, '.filter_by_since_limit'],
     [ /\.filterBySymbol\s/g, '.filter_by_symbol'],
@@ -116,6 +118,7 @@ const commonRegexes = [
     [ /\.throwExceptionOnError\s/g, '.throw_exception_on_error'],
     [ /\.handleErrors\s/g, '.handle_errors'],
     [ /\.checkRequiredCredentials\s/g, '.check_required_credentials'],
+    [ /\.checkAddress\s/g, '.check_address'],
 ]
 
 // ----------------------------------------------------------------------------
@@ -190,7 +193,7 @@ const pythonRegexes = [
         [ /Math\.abs\s*\(([^\)]+)\)/g, 'abs($1)' ],
         [ /Math\.pow\s*\(([^\)]+)\)/g, 'math.pow($1)' ],
         [ /Math\.round\s*\(([^\)]+)\)/g, 'int(round($1))' ],
-        [ /Math\.ceil\s*\(([^\)]+)\)/g, 'int(ceil($1))' ],
+        [ /Math\.ceil\s*\(([^\)]+)\)/g, 'int(math.ceil($1))' ],
         [ /Math\.log/g, 'math.log' ],
         [ /(\([^\)]+\)|[^\s]+)\s*\?\s*([^\:]+)\s+\:\s*([^\n]+)/g, '$2 if $1 else $3'],
         [ / \/\//g, ' #' ],

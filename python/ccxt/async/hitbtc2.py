@@ -1016,6 +1016,7 @@ class hitbtc2 (hitbtc):
             'currency': currency['id'],
         })
         address = response['address']
+        self.check_address(address)
         tag = self.safe_string(response, 'paymentId')
         return {
             'currency': currency,
@@ -1032,6 +1033,7 @@ class hitbtc2 (hitbtc):
             'currency': currency['id'],
         })
         address = response['address']
+        self.check_address(address)
         tag = self.safe_string(response, 'paymentId')
         return {
             'currency': currency,
@@ -1042,6 +1044,7 @@ class hitbtc2 (hitbtc):
         }
 
     async def withdraw(self, code, amount, address, tag=None, params={}):
+        self.check_address(address)
         currency = self.currency(code)
         request = {
             'currency': currency['id'],

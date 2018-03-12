@@ -266,7 +266,7 @@ class cryptopia (Exchange):
             market = self.markets_by_id[id]
             symbol = market['symbol']
             result[symbol] = self.parse_ticker(ticker, market)
-        return result
+        return self.filter_by_array(result, 'symbol', symbols)
 
     def parse_trade(self, trade, market=None):
         timestamp = None
@@ -314,7 +314,7 @@ class cryptopia (Exchange):
         if since is not None:
             elapsed = self.milliseconds() - since
             hour = 1000 * 60 * 60
-            hours = int(elapsed / hour)
+            hours = int(int(math.ceil(elapsed / hour)))
         request = {
             'id': market['id'],
             'hours': hours,
@@ -566,6 +566,7 @@ class cryptopia (Exchange):
         address = self.safe_string(response['Data'], 'BaseAddress')
         if not address:
             address = self.safe_string(response['Data'], 'Address')
+        self.check_address(address)
         return {
             'currency': currency,
             'address': address,
@@ -574,6 +575,7 @@ class cryptopia (Exchange):
         }
 
     async def withdraw(self, currency, amount, address, tag=None, params={}):
+        self.check_address(address)
         currencyId = self.currency_id(currency)
         request = {
             'Currency': currencyId,

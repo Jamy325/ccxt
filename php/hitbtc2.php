@@ -1049,6 +1049,7 @@ class hitbtc2 extends hitbtc {
             'currency' => $currency['id'],
         ));
         $address = $response['address'];
+        $this->check_address($address);
         $tag = $this->safe_string($response, 'paymentId');
         return array (
             'currency' => $currency,
@@ -1066,6 +1067,7 @@ class hitbtc2 extends hitbtc {
             'currency' => $currency['id'],
         ));
         $address = $response['address'];
+        $this->check_address($address);
         $tag = $this->safe_string($response, 'paymentId');
         return array (
             'currency' => $currency,
@@ -1077,6 +1079,7 @@ class hitbtc2 extends hitbtc {
     }
 
     public function withdraw ($code, $amount, $address, $tag = null, $params = array ()) {
+        $this->check_address($address);
         $currency = $this->currency ($code);
         $request = array (
             'currency' => $currency['id'],

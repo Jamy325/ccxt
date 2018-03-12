@@ -500,17 +500,7 @@ class binance (Exchange):
         tickers = []
         for i in range(0, len(rawTickers)):
             tickers.append(self.parse_ticker(rawTickers[i]))
-        tickersBySymbol = self.index_by(tickers, 'symbol')
-        # return all of them if no symbols were passed in the first argument
-        if symbols is None:
-            return tickersBySymbol
-        # otherwise filter by symbol
-        result = {}
-        for i in range(0, len(symbols)):
-            symbol = symbols[i]
-            if symbol in tickersBySymbol:
-                result[symbol] = tickersBySymbol[symbol]
-        return result
+        return self.filter_by_array(tickers, 'symbol', symbols)
 
     def fetch_bid_asks(self, symbols=None, params={}):
         self.load_markets()
@@ -760,7 +750,7 @@ class binance (Exchange):
                 tag = self.safe_string(response, 'addressTag')
                 return {
                     'currency': code,
-                    'address': address,
+                    'address': self.check_address(address),
                     'tag': tag,
                     'status': 'ok',
                     'info': response,
@@ -768,6 +758,7 @@ class binance (Exchange):
         raise ExchangeError(self.id + ' fetchDepositAddress failed: ' + self.last_http_response)
 
     def withdraw(self, code, amount, address, tag=None, params={}):
+        self.check_address(address)
         self.load_markets()
         currency = self.currency(code)
         name = address[0:20]

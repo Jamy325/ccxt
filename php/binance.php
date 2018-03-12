@@ -499,18 +499,7 @@ class binance extends Exchange {
         for ($i = 0; $i < count ($rawTickers); $i++) {
             $tickers[] = $this->parse_ticker($rawTickers[$i]);
         }
-        $tickersBySymbol = $this->index_by($tickers, 'symbol');
-        // return all of them if no $symbols were passed in the first argument
-        if ($symbols === null)
-            return $tickersBySymbol;
-        // otherwise filter by $symbol
-        $result = array ();
-        for ($i = 0; $i < count ($symbols); $i++) {
-            $symbol = $symbols[$i];
-            if (is_array ($tickersBySymbol) && array_key_exists ($symbol, $tickersBySymbol))
-                $result[$symbol] = $tickersBySymbol[$symbol];
-        }
-        return $result;
+        return $this->filter_by_array($tickers, 'symbol', $symbols);
     }
 
     public function fetch_bid_asks ($symbols = null, $params = array ()) {
@@ -782,7 +771,7 @@ class binance extends Exchange {
                 $tag = $this->safe_string($response, 'addressTag');
                 return array (
                     'currency' => $code,
-                    'address' => $address,
+                    'address' => $this->check_address($address),
                     'tag' => $tag,
                     'status' => 'ok',
                     'info' => $response,
@@ -793,6 +782,7 @@ class binance extends Exchange {
     }
 
     public function withdraw ($code, $amount, $address, $tag = null, $params = array ()) {
+        $this->check_address($address);
         $this->load_markets();
         $currency = $this->currency ($code);
         $name = mb_substr ($address, 0, 20);

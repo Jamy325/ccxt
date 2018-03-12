@@ -480,6 +480,7 @@ module.exports = class huobipro extends Exchange {
             'currency': currency['id'].toLowerCase (),
         }, params));
         let address = this.safeString (response, 'data');
+        this.checkAddress (address);
         return {
             'currency': code,
             'status': 'ok',
@@ -507,6 +508,7 @@ module.exports = class huobipro extends Exchange {
     }
 
     async withdraw (currency, amount, address, tag = undefined, params = {}) {
+        this.checkAddress (address);
         let request = {
             'address': address, // only supports existing addresses in your withdraw address list
             'amount': amount,

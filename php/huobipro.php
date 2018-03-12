@@ -479,6 +479,7 @@ class huobipro extends Exchange {
             'currency' => strtolower ($currency['id']),
         ), $params));
         $address = $this->safe_string($response, 'data');
+        $this->check_address($address);
         return array (
             'currency' => $code,
             'status' => 'ok',
@@ -506,6 +507,7 @@ class huobipro extends Exchange {
     }
 
     public function withdraw ($currency, $amount, $address, $tag = null, $params = array ()) {
+        $this->check_address($address);
         $request = array (
             'address' => $address, // only supports existing addresses in your withdraw $address list
             'amount' => $amount,

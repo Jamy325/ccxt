@@ -444,6 +444,7 @@ class huobipro (Exchange):
             'currency': currency['id'].lower(),
         }, params))
         address = self.safe_string(response, 'data')
+        self.check_address(address)
         return {
             'currency': code,
             'status': 'ok',
@@ -468,6 +469,7 @@ class huobipro (Exchange):
         }
 
     def withdraw(self, currency, amount, address, tag=None, params={}):
+        self.check_address(address)
         request = {
             'address': address,  # only supports existing addresses in your withdraw address list
             'amount': amount,

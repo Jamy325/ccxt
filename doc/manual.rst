@@ -326,7 +326,8 @@ The ccxt library in PHP uses builtin UTC/GMT time functions, therefore you are r
     $bitfinex1 = new \ccxt\bitfinex (array ('id' => 'bitfinex1'));
     $bitfinex2 = new \ccxt\bitfinex (array ('id' => 'bitfinex2'));
     $id = 'kraken';
-    $kraken = new \ccxt\$id ();
+    $exchange = '\\ccxt\\' . $id
+    $kraken = new $exchange ();
 
 Exchange Structure
 ------------------
@@ -659,7 +660,8 @@ In order to load markets manually beforehand call the ``loadMarkets ()`` / ``loa
 
     // PHP
     $id = 'huobi';
-    $huobi = new \ccxt\$id ();
+    $exchange = '\\ccxt\\' . $id;
+    $huobi = new $exchange ();
     $markets = $huobi.load_markets ();
     var_dump ($huobi->id, $markets);
 
@@ -1349,6 +1351,8 @@ You can call the unified ``fetchOHLCV`` / ``fetch_ohlcv`` method to get the list
 To get the list of available timeframes for your exchange see the ``timeframes`` property. Note that it is only populated when ``has['fetchTickers']`` is true as well.
 
 **There's a limit on how far back in time your requests can go.** Most of exchanges will not allow to query detailed candlestick history (like those for 1-minute and 5-minute timeframes) too far in the past. They usually keep a reasonable amount of most recent candles, like 1000 last candles for any timeframe is more than enough for most of needs. You can work around that limitation by continuously fetching (aka *REST polling*) latest OHLCVs and storing them in a CSV file or in a database.
+
+**Note that the info from the last (current) candle may be incomplete until the candle is closed (until the next candle starts).**
 
 The fetchOHLCV method shown above returns a list (a flat array) of OHLCV candles represented by the following structure:
 
@@ -2220,8 +2224,12 @@ Below is an outline of exception inheritance hierarchy:
     |   +---+ NotSupported
     |   |
     |   +---+ AuthenticationError
+    |   |   |
+    |   |   +---+ PermissionDenied
     |   |
     |   +---+ InsufficientFunds
+    |   |
+    |   +---+ InvalidAddress
     |   |
     |   +---+ InvalidOrder
     |       |
@@ -2254,7 +2262,9 @@ Other exceptions derived from ``ExchangeError``:
 
 -  ``NotSupported``: This exception is raised if the endpoint is not offered/not supported by the exchange API.
 -  ``AuthenticationError``: Raised when an exchange requires one of the API credentials that you've missed to specify, or when there's a mistake in the keypair or an outdated nonce. Most of the time you need ``apiKey`` and ``secret``, sometimes you also need ``uid`` and/or ``password``.
+-  ``PermissionDenied``: Raised when there's no access for specified action or insufficient permissions on the specified ``apiKey``.
 -  ``InsufficientFunds``: This exception is raised when you don't have enough currency on your account balance to place an order.
+-  ``InvalidAddress``: This exception is raised upon encountering a bad funding address or a funding address shorter than ``.minFundingAddressLength`` (10 characters by default) in a call to ``fetchDepositAddress``, ``createDepositAddress`` or ``withdraw``.
 -  ``InvalidOrder``: This exception is the base class for all exceptions related to the unified order API.
 -  ``OrderNotFound``: Raised when you are trying to fetch or cancel a non-existent order.
 
@@ -2317,6 +2327,7 @@ Troubleshooting
 
 In case you experience any difficulty connecting to a particular exchange, do the following in order of precedence:
 
+-  Make sure that you have the most recent version of ccxt.
 -  Check the `CHANGELOG <https://github.com/ccxt/ccxt/blob/master/CHANGELOG.md>`__ for recent updates.
 -  Turn ``verbose = true`` to get more detail about it.
 -  Python people can turn on DEBUG logging level with a standard pythonic logger, by adding these two lines to the beginning of their code:

@@ -19,6 +19,8 @@ class bitflyer extends Exchange {
                 'withdraw' => true,
                 'fetchOrders' => true,
                 'fetchOrder' => true,
+                'fetchOpenOrders' => 'emulated',
+                'fetchClosedOrders' => 'emulated',
             ),
             'urls' => array (
                 'logo' => 'https://user-images.githubusercontent.com/1294454/28051642-56154182-660e-11e7-9b0d-6042d1e6edd8.jpg',
@@ -299,15 +301,26 @@ class bitflyer extends Exchange {
         if ($symbol === null)
             throw new ExchangeError ($this->id . ' fetchOrders() requires a $symbol argument');
         $this->load_markets();
+        $market = $this->market ($symbol);
         $request = array (
-            'product_code' => $this->market_id($symbol),
+            'product_code' => $market['id'],
             'count' => $limit,
         );
         $response = $this->privateGetGetchildorders (array_merge ($request, $params));
-        $orders = $this->parse_orders($response, $symbol, $since, $limit);
+        $orders = $this->parse_orders($response, $market, $since, $limit);
         if ($symbol)
             $orders = $this->filter_by($orders, 'symbol', $symbol);
         return $orders;
+    }
+
+    public function fetch_open_orders ($symbol = null, $since = null, $limit = 100, $params = array ()) {
+        $params['child_order_state'] = 'ACTIVE';
+        return $this->fetch_orders($symbol, $since, $limit, $params);
+    }
+
+    public function fetch_closed_orders ($symbol = null, $since = null, $limit = 100, $params = array ()) {
+        $params['child_order_state'] = 'COMPLETED';
+        return $this->fetch_orders($symbol, $since, $limit, $params);
     }
 
     public function fetch_order ($id, $symbol = null, $params = array ()) {
@@ -321,6 +334,7 @@ class bitflyer extends Exchange {
     }
 
     public function withdraw ($currency, $amount, $address, $tag = null, $params = array ()) {
+        $this->check_address($address);
         $this->load_markets();
         $response = $this->privatePostWithdraw (array_merge (array (
             'currency_code' => $currency,
@@ -348,9 +362,10 @@ class bitflyer extends Exchange {
             $nonce = (string) $this->nonce ();
             $auth = implode ('', array ($nonce, $method, $request));
             if ($params) {
-                $body = $this->json ($params);
-                if ($method !== 'GET')
+                if ($method !== 'GET') {
+                    $body = $this->json ($params);
                     $auth .= $body;
+                }
             }
             $headers = array (
                 'ACCESS-KEY' => $this->apiKey,

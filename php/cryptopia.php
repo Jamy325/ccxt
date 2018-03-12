@@ -273,7 +273,7 @@ class cryptopia extends Exchange {
             $symbol = $market['symbol'];
             $result[$symbol] = $this->parse_ticker($ticker, $market);
         }
-        return $result;
+        return $this->filter_by_array($result, 'symbol', $symbols);
     }
 
     public function parse_trade ($trade, $market = null) {
@@ -327,7 +327,7 @@ class cryptopia extends Exchange {
         if ($since !== null) {
             $elapsed = $this->milliseconds () - $since;
             $hour = 1000 * 60 * 60;
-            $hours = intval ($elapsed / $hour);
+            $hours = intval ((int) ceil ($elapsed / $hour));
         }
         $request = array (
             'id' => $market['id'],
@@ -612,6 +612,7 @@ class cryptopia extends Exchange {
         $address = $this->safe_string($response['Data'], 'BaseAddress');
         if (!$address)
             $address = $this->safe_string($response['Data'], 'Address');
+        $this->check_address($address);
         return array (
             'currency' => $currency,
             'address' => $address,
@@ -621,6 +622,7 @@ class cryptopia extends Exchange {
     }
 
     public function withdraw ($currency, $amount, $address, $tag = null, $params = array ()) {
+        $this->check_address($address);
         $currencyId = $this->currency_id ($currency);
         $request = array (
             'Currency' => $currencyId,

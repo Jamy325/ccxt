@@ -274,7 +274,7 @@ module.exports = class cryptopia extends Exchange {
             let symbol = market['symbol'];
             result[symbol] = this.parseTicker (ticker, market);
         }
-        return result;
+        return this.filterByArray (result, 'symbol', symbols);
     }
 
     parseTrade (trade, market = undefined) {
@@ -328,7 +328,7 @@ module.exports = class cryptopia extends Exchange {
         if (typeof since !== 'undefined') {
             let elapsed = this.milliseconds () - since;
             let hour = 1000 * 60 * 60;
-            hours = parseInt (elapsed / hour);
+            hours = parseInt (Math.ceil (elapsed / hour));
         }
         let request = {
             'id': market['id'],
@@ -613,6 +613,7 @@ module.exports = class cryptopia extends Exchange {
         let address = this.safeString (response['Data'], 'BaseAddress');
         if (!address)
             address = this.safeString (response['Data'], 'Address');
+        this.checkAddress (address);
         return {
             'currency': currency,
             'address': address,
@@ -622,6 +623,7 @@ module.exports = class cryptopia extends Exchange {
     }
 
     async withdraw (currency, amount, address, tag = undefined, params = {}) {
+        this.checkAddress (address);
         let currencyId = this.currencyId (currency);
         let request = {
             'Currency': currencyId,

@@ -74,6 +74,7 @@ class hitbtc extends Exchange {
                     ),
                 ),
             ),
+            // hardcoded fees are deprecated and should only be used when there's no other way to get fee info
             'fees' => array (
                 'trading' => array (
                     'tierBased' => false,
@@ -861,6 +862,7 @@ class hitbtc extends Exchange {
     }
 
     public function withdraw ($code, $amount, $address, $tag = null, $params = array ()) {
+        $this->check_address($address);
         $this->load_markets();
         $currency = $this->currency ($code);
         $request = array (
