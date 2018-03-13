@@ -190,7 +190,7 @@ The ccxt library currently supports the following 102 cryptocurrency exchange ma
 +------------------------+----------------------+----------------------------------------------------------------+-------+---------------------------------------------------------------------------------------------------+--------------------------------------------+
 | |huobicny|             | huobicny             | `Huobi CNY <https://www.huobi.com>`__                          | 1     | `API <https://github.com/huobiapi/API_Docs/wiki/REST_api_reference>`__                            | China                                      |
 +------------------------+----------------------+----------------------------------------------------------------+-------+---------------------------------------------------------------------------------------------------+--------------------------------------------+
-| |huobipro|             | huobipro             | `Huobi Pro <https://www.huobi.pro>`__                          | 1     | `API <https://github.com/huobiapi/API_Docs/wiki/REST_api_reference>`__                            | China                                      |
+| |huobipro|             | huobipro             | `Huobi Pro <https://www.huobipro.com>`__                       | 1     | `API <https://github.com/huobiapi/API_Docs/wiki/REST_api_reference>`__                            | China                                      |
 +------------------------+----------------------+----------------------------------------------------------------+-------+---------------------------------------------------------------------------------------------------+--------------------------------------------+
 | |independentreserve|   | independentreserve   | `Independent Reserve <https://www.independentreserve.com>`__   | \*    | `API <https://www.independentreserve.com/API>`__                                                  | Australia, New Zealand                     |
 +------------------------+----------------------+----------------------------------------------------------------+-------+---------------------------------------------------------------------------------------------------+--------------------------------------------+
@@ -1202,9 +1202,9 @@ A price ticker contains statistics for a particular market/symbol for some perio
         'high':          float, // highest price
         'low':           float, // lowest price
         'bid':           float, // current best bid (buy) price
-        'bidVolume':     float, // current best bid (buy) amount
+        'bidVolume':     float, // current best bid (buy) amount (may be missing or undefined)
         'ask':           float, // current best ask (sell) price
-        'askVolume':     float, // current best ask (sell) amount
+        'askVolume':     float, // current best ask (sell) amount (may be missing or undefined)
         'vwap':          float, // volume weighed average price
         'open':          float, // opening price
         'close':         float, // price of last trade (closing price for current period)
