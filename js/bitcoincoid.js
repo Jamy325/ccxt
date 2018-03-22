@@ -131,6 +131,7 @@ module.exports = class bitcoincoid extends Exchange {
         let timestamp = parseFloat (ticker['server_time']) * 1000;
         let baseVolume = 'vol_' + market['baseId'].toLowerCase ();
         let quoteVolume = 'vol_' + market['quoteId'].toLowerCase ();
+        let last = parseFloat (ticker['last']);
         return {
             'symbol': symbol,
             'timestamp': timestamp,
@@ -138,12 +139,14 @@ module.exports = class bitcoincoid extends Exchange {
             'high': parseFloat (ticker['high']),
             'low': parseFloat (ticker['low']),
             'bid': parseFloat (ticker['buy']),
+            'bidVolume': undefined,
             'ask': parseFloat (ticker['sell']),
+            'askVolume': undefined,
             'vwap': undefined,
             'open': undefined,
-            'close': undefined,
-            'first': undefined,
-            'last': parseFloat (ticker['last']),
+            'close': last,
+            'last': last,
+            'previousClose': undefined,
             'change': undefined,
             'percentage': undefined,
             'average': undefined,
@@ -362,9 +365,13 @@ module.exports = class bitcoincoid extends Exchange {
 
     handleErrors (code, reason, url, method, headers, body, response = undefined) {
         // { success: 0, error: "invalid order." }
+        // or
+        // [{ data, ... }, { ... }, ... ]
         if (typeof response === 'undefined')
-            if (body[0] === '{')
+            if (body[0] === '{' || body[0] === '[')
                 response = JSON.parse (body);
+        if (Array.isArray (response))
+            return; // public endpoints may return []-arrays
         if (!('success' in response))
             return; // no 'success' property on public responses
         if (response['success'] === 1) {
