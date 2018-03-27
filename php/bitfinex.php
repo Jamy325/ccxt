@@ -216,12 +216,17 @@ class bitfinex extends Exchange {
                 ),
             ),
             'commonCurrencies' => array (
-                'DSH' => 'DASH', // Bitfinex names Dash as DSH, instead of DASH
-                'QTM' => 'QTUM',
                 'BCC' => 'CST_BCC',
                 'BCU' => 'CST_BCU',
-                'IOT' => 'IOTA',
                 'DAT' => 'DATA',
+                'DSH' => 'DASH', // Bitfinex names Dash as DSH, instead of DASH
+                'IOT' => 'IOTA',
+                'MNA' => 'MANA',
+                'QSH' => 'QASH',
+                'QTM' => 'QTUM',
+                'SNG' => 'SNGLS',
+                'SPK' => 'SPANK',
+                'YYW' => 'YOYOW',
             ),
             'exceptions' => array (
                 'exact' => array (
@@ -618,18 +623,18 @@ class bitfinex extends Exchange {
 
     public function fetch_ohlcv ($symbol, $timeframe = '1m', $since = null, $limit = 100, $params = array ()) {
         $this->load_markets();
+        if ($since === null)
+            $since = $this->milliseconds () - $this->parse_timeframe($timeframe) * $limit * 1000;
         $market = $this->market ($symbol);
         $v2id = 't' . $market['id'];
         $request = array (
             'symbol' => $v2id,
             'timeframe' => $this->timeframes[$timeframe],
-            'sort' => 1,
+            'sort' => '-1',
             'limit' => $limit,
+            'start' => $since,
         );
-        if ($since !== null)
-            $request['start'] = $since;
-        $request = array_merge ($request, $params);
-        $response = $this->v2GetCandlesTradeTimeframeSymbolHist ($request);
+        $response = $this->v2GetCandlesTradeTimeframeSymbolHist (array_merge ($request, $params));
         return $this->parse_ohlcvs($response, $market, $timeframe, $since, $limit);
     }
 

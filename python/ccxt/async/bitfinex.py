@@ -229,12 +229,17 @@ class bitfinex (Exchange):
                 },
             },
             'commonCurrencies': {
-                'DSH': 'DASH',  # Bitfinex names Dash as DSH, instead of DASH
-                'QTM': 'QTUM',
                 'BCC': 'CST_BCC',
                 'BCU': 'CST_BCU',
-                'IOT': 'IOTA',
                 'DAT': 'DATA',
+                'DSH': 'DASH',  # Bitfinex names Dash as DSH, instead of DASH
+                'IOT': 'IOTA',
+                'MNA': 'MANA',
+                'QSH': 'QASH',
+                'QTM': 'QTUM',
+                'SNG': 'SNGLS',
+                'SPK': 'SPANK',
+                'YYW': 'YOYOW',
             },
             'exceptions': {
                 'exact': {
@@ -595,18 +600,18 @@ class bitfinex (Exchange):
 
     async def fetch_ohlcv(self, symbol, timeframe='1m', since=None, limit=100, params={}):
         await self.load_markets()
+        if since is None:
+            since = self.milliseconds() - self.parse_timeframe(timeframe) * limit * 1000
         market = self.market(symbol)
         v2id = 't' + market['id']
         request = {
             'symbol': v2id,
             'timeframe': self.timeframes[timeframe],
-            'sort': 1,
+            'sort': '-1',
             'limit': limit,
+            'start': since,
         }
-        if since is not None:
-            request['start'] = since
-        request = self.extend(request, params)
-        response = await self.v2GetCandlesTradeTimeframeSymbolHist(request)
+        response = await self.v2GetCandlesTradeTimeframeSymbolHist(self.extend(request, params))
         return self.parse_ohlcvs(response, market, timeframe, since, limit)
 
     def get_currency_name(self, currency):

@@ -92,10 +92,11 @@ class livecoin (Exchange):
                     'taker': 0.18 / 100,
                 },
             },
+            'commonCurrencies': {
+                'CRC': 'CryCash',
+                'XBT': 'Bricktox',
+            },
         })
-
-    def common_currency_code(self, currency):
-        return currency
 
     async def fetch_markets(self):
         markets = await self.publicGetExchangeTicker()
@@ -106,7 +107,9 @@ class livecoin (Exchange):
             market = markets[p]
             id = market['symbol']
             symbol = id
-            base, quote = symbol.split('/')
+            baseId, quoteId = symbol.split('/')
+            base = self.common_currency_code(baseId)
+            quote = self.common_currency_code(quoteId)
             coinRestrictions = self.safe_value(restrictionsById, symbol)
             precision = {
                 'price': 5,
@@ -131,6 +134,8 @@ class livecoin (Exchange):
                 'symbol': symbol,
                 'base': base,
                 'quote': quote,
+                'baseId': baseId,
+                'quoteId': quoteId,
                 'active': True,
                 'precision': precision,
                 'limits': limits,

@@ -17,6 +17,7 @@ class bitflyer extends Exchange {
             'has' => array (
                 'CORS' => false,
                 'withdraw' => true,
+                'fetchMyTrades' => true,
                 'fetchOrders' => true,
                 'fetchOrder' => true,
                 'fetchOpenOrders' => 'emulated',
@@ -337,11 +338,28 @@ class bitflyer extends Exchange {
         throw new OrderNotFound ($this->id . ' No order found with $id ' . $id);
     }
 
-    public function withdraw ($currency, $amount, $address, $tag = null, $params = array ()) {
+    public function fetch_my_trades ($symbol = null, $since = null, $limit = null, $params = array ()) {
+        if ($symbol === null)
+            throw new ExchangeError ($this->id . ' fetchMyTrades requires a $symbol argument');
+        $this->load_markets();
+        $market = $this->market ($symbol);
+        $request = array (
+            'product_code' => $market['id'],
+        );
+        if ($limit)
+            $request['count'] = $limit;
+        $response = $this->privateGetGetexecutions (array_merge ($request, $params));
+        return $this->parse_trades($response, $market, $since, $limit);
+    }
+
+    public function withdraw ($code, $amount, $address, $tag = null, $params = array ()) {
         $this->check_address($address);
         $this->load_markets();
+        if ($code !== 'JPY' && $code !== 'USD' && $code !== 'EUR')
+            throw new ExchangeError ($this->id . ' allows withdrawing JPY, USD, EUR only, ' . $code . ' is not supported');
+        $currency = $this->currency ($code);
         $response = $this->privatePostWithdraw (array_merge (array (
-            'currency_code' => $currency,
+            'currency_code' => $currency['id'],
             'amount' => $amount,
             // 'bank_account_id' => 1234,
         ), $params));

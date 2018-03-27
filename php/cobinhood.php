@@ -384,11 +384,13 @@ class cobinhood extends Exchange {
 
     public function parse_order ($order, $market = null) {
         $symbol = null;
-        if (!$market) {
-            $marketId = $order['trading_pair'];
+        if ($market === null) {
+            $marketId = $this->safe_string($order, 'trading_pair');
+            if ($marketId === null)
+                $marketId = $this->safe_string($order, 'trading_pair_id');
             $market = $this->markets_by_id[$marketId];
         }
-        if ($market)
+        if ($market !== null)
             $symbol = $market['symbol'];
         $timestamp = $order['timestamp'];
         $price = floatval ($order['price']);
@@ -473,7 +475,7 @@ class cobinhood extends Exchange {
             'order_id' => $id,
         ), $params));
         $market = ($symbol === null) ? null : $this->market ($symbol);
-        return $this->parse_trades($response['result'], $market);
+        return $this->parse_trades($response['result']['trades'], $market);
     }
 
     public function create_deposit_address ($code, $params = array ()) {

@@ -385,11 +385,13 @@ module.exports = class cobinhood extends Exchange {
 
     parseOrder (order, market = undefined) {
         let symbol = undefined;
-        if (!market) {
-            let marketId = order['trading_pair'];
+        if (typeof market === 'undefined') {
+            let marketId = this.safeString (order, 'trading_pair');
+            if (typeof marketId === 'undefined')
+                marketId = this.safeString (order, 'trading_pair_id');
             market = this.markets_by_id[marketId];
         }
-        if (market)
+        if (typeof market !== 'undefined')
             symbol = market['symbol'];
         let timestamp = order['timestamp'];
         let price = parseFloat (order['price']);
@@ -474,7 +476,7 @@ module.exports = class cobinhood extends Exchange {
             'order_id': id,
         }, params));
         let market = (typeof symbol === 'undefined') ? undefined : this.market (symbol);
-        return this.parseTrades (response['result'], market);
+        return this.parseTrades (response['result']['trades'], market);
     }
 
     async createDepositAddress (code, params = {}) {

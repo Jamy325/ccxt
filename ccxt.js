@@ -37,7 +37,7 @@ const Exchange  = require ('./js/base/Exchange')
 //-----------------------------------------------------------------------------
 // this is updated by vss.js when building
 
-const version = '1.11.150'
+const version = '1.12.10'
 
 Exchange.ccxtVersion = version
 
@@ -53,8 +53,8 @@ const exchanges = {
     'bigone':                   require ('./js/bigone.js'),
     'binance':                 require ('./js/binance.js'),
     'bit2c':                   require ('./js/bit2c.js'),
+    'bitbank':                 require ('./js/bitbank.js'),
     'bitbay':                  require ('./js/bitbay.js'),
-    'bitcoincoid':             require ('./js/bitcoincoid.js'),
     'bitfinex':                require ('./js/bitfinex.js'),
     'bitfinex2':               require ('./js/bitfinex2.js'),
     'bitflyer':                require ('./js/bitflyer.js'),
@@ -98,6 +98,7 @@ const exchanges = {
     'dsx':                     require ('./js/dsx.js'),
     'ethfinex':                require ('./js/ethfinex.js'),
     'exmo':                    require ('./js/exmo.js'),
+    'exx':                     require ('./js/exx.js'),
     'flowbtc':                 require ('./js/flowbtc.js'),
     'foxbit':                  require ('./js/foxbit.js'),
     'fybse':                   require ('./js/fybse.js'),
@@ -113,6 +114,7 @@ const exchanges = {
     'huobicny':                require ('./js/huobicny.js'),
     'huobipro':                require ('./js/huobipro.js'),
     'independentreserve':      require ('./js/independentreserve.js'),
+    'indodax':                 require ('./js/indodax.js'),
     'itbit':                   require ('./js/itbit.js'),
     'jubi':                    require ('./js/jubi.js'),
     'kraken':                  require ('./js/kraken.js'),

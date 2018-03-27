@@ -20,6 +20,7 @@ class bitflyer (Exchange):
             'has': {
                 'CORS': False,
                 'withdraw': True,
+                'fetchMyTrades': True,
                 'fetchOrders': True,
                 'fetchOrder': True,
                 'fetchOpenOrders': 'emulated',
@@ -316,11 +317,27 @@ class bitflyer (Exchange):
             return ordersById[id]
         raise OrderNotFound(self.id + ' No order found with id ' + id)
 
-    async def withdraw(self, currency, amount, address, tag=None, params={}):
+    async def fetch_my_trades(self, symbol=None, since=None, limit=None, params={}):
+        if symbol is None:
+            raise ExchangeError(self.id + ' fetchMyTrades requires a symbol argument')
+        await self.load_markets()
+        market = self.market(symbol)
+        request = {
+            'product_code': market['id'],
+        }
+        if limit:
+            request['count'] = limit
+        response = await self.privateGetGetexecutions(self.extend(request, params))
+        return self.parse_trades(response, market, since, limit)
+
+    async def withdraw(self, code, amount, address, tag=None, params={}):
         self.check_address(address)
         await self.load_markets()
+        if code != 'JPY' and code != 'USD' and code != 'EUR':
+            raise ExchangeError(self.id + ' allows withdrawing JPY, USD, EUR only, ' + code + ' is not supported')
+        currency = self.currency(code)
         response = await self.privatePostWithdraw(self.extend({
-            'currency_code': currency,
+            'currency_code': currency['id'],
             'amount': amount,
             # 'bank_account_id': 1234,
         }, params))

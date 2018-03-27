@@ -72,6 +72,8 @@ class ccex extends Exchange {
                 'IOT' => 'IoTcoin',
                 'BLC' => 'Cryptobullcoin',
                 'XID' => 'InternationalDiamond',
+                'LUX' => 'Luxmi',
+                'CRC' => 'CoreCoin',
             ),
         ));
     }
@@ -223,7 +225,7 @@ class ccex extends Exchange {
     public function fetch_tickers ($symbols = null, $params = array ()) {
         $this->load_markets();
         $tickers = $this->webGetPrices ($params);
-        $result = array ( 'info' => $tickers );
+        $result = array ();
         $ids = is_array ($tickers) ? array_keys ($tickers) : array ();
         for ($i = 0; $i < count ($ids); $i++) {
             $id = $ids[$i];
