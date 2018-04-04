@@ -40,6 +40,7 @@ module.exports = class bitflyer extends Exchange {
                         'getticker',
                         'getexecutions',
                         'gethealth',
+                        'getboardstate',
                         'getchats',
                     ],
                 },
@@ -192,6 +193,8 @@ module.exports = class bitflyer extends Exchange {
                 if (id in trade)
                     order = trade[id];
             }
+        if (typeof order === 'undefined')
+            order = this.safeString (trade, 'child_order_acceptance_id');
         let timestamp = this.parse8601 (trade['exec_date']);
         return {
             'id': trade['id'].toString (),

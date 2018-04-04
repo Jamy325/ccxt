@@ -21,14 +21,13 @@ class bitfinex extends Exchange {
                 'deposit' => true,
                 'fetchClosedOrders' => true,
                 'fetchDepositAddress' => true,
-                'fetchFees' => true,
+                'fetchTradingFees' => true,
                 'fetchFundingFees' => true,
                 'fetchMyTrades' => true,
                 'fetchOHLCV' => true,
                 'fetchOpenOrders' => true,
                 'fetchOrder' => true,
                 'fetchTickers' => true,
-                'fetchTradingFees' => true,
                 'withdraw' => true,
             ),
             'timeframes' => array (
@@ -246,6 +245,7 @@ class bitfinex extends Exchange {
                     'Invalid order' => '\\ccxt\\InvalidOrder', // ?
                 ),
             ),
+            'significantPrecision' => true,
         ));
     }
 
@@ -279,23 +279,6 @@ class bitfinex extends Exchange {
             'maker' => $this->safe_float($response, 'maker_fee'),
             'taker' => $this->safe_float($response, 'taker_fee'),
         );
-    }
-
-    public function load_fees () {
-        // // PHP does flat copying for arrays
-        // // setting $fees on the exchange instance isn't portable, unfortunately...
-        // // this should probably go into the base class as well
-        // $funding = $this->fees['funding'];
-        // $fees = $this->fetch_funding_fees();
-        // $funding = array_replace_recursive ($funding, $fees);
-        // return $funding;
-        throw new NotSupported ($this->id . ' loadFees() not implemented yet');
-    }
-
-    public function fetch_fees () {
-        $fundingFees = $this->fetch_funding_fees();
-        $tradingFees = $this->fetch_trading_fees();
-        return array_replace_recursive ($fundingFees, $tradingFees);
     }
 
     public function fetch_markets () {
@@ -342,6 +325,35 @@ class bitfinex extends Exchange {
             );
         }
         return $result;
+    }
+
+    public function cost_to_precision ($symbol, $cost) {
+        return $this->decimalToPrecision ($cost, $this->ROUND, $this->markets[$symbol].precision.price, $this->SIGNIFICANT_DIGITS);
+    }
+
+    public function price_to_precision ($symbol, $price) {
+        return $this->decimalToPrecision ($price, $this->ROUND, $this->markets[$symbol].precision.price, $this->SIGNIFICANT_DIGITS);
+    }
+
+    public function amount_to_precision ($symbol, $amount) {
+        return $this->decimalToPrecision ($amount, $this->ROUND, $this->markets[$symbol].precision.amount, $this->SIGNIFICANT_DIGITS);
+    }
+
+    public function fee_to_precision ($currency, $fee) {
+        return $this->decimalToPrecision ($fee, $this->ROUND, $this->currencies[$currency]['precision'], $this->SIGNIFICANT_DIGITS);
+    }
+
+    public function calculate_fee ($symbol, $type, $side, $amount, $price, $takerOrMaker = 'taker', $params = array ()) {
+        $market = $this->markets[$symbol];
+        $rate = $market[$takerOrMaker];
+        $cost = $amount * $price;
+        $key = 'quote';
+        return array (
+            'type' => $takerOrMaker,
+            'currency' => $market[$key],
+            'rate' => $rate,
+            'cost' => floatval ($this->fee_to_precision($market[$key], $rate * $cost)),
+        );
     }
 
     public function fetch_balance ($params = array ()) {
@@ -453,7 +465,7 @@ class bitfinex extends Exchange {
         $cost = $price * $amount;
         $fee = null;
         if (is_array ($trade) && array_key_exists ('fee_amount', $trade)) {
-            $feeCost = $this->safe_float($trade, 'fee_amount');
+            $feeCost = -$this->safe_float($trade, 'fee_amount');
             $feeCurrency = $this->safe_string($trade, 'fee_currency');
             if (is_array ($this->currencies_by_id) && array_key_exists ($feeCurrency, $this->currencies_by_id))
                 $feeCurrency = $this->currencies_by_id[$feeCurrency]['code'];
@@ -630,7 +642,7 @@ class bitfinex extends Exchange {
         $request = array (
             'symbol' => $v2id,
             'timeframe' => $this->timeframes[$timeframe],
-            'sort' => '-1',
+            'sort' => 1,
             'limit' => $limit,
             'start' => $since,
         );

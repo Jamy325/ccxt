@@ -156,6 +156,9 @@ module.exports = class okcoinusd extends Exchange {
             'ETC/USD': true,
             'ETH/USD': true,
             'LTC/USD': true,
+            'XRP/USD': true,
+            'EOS/USD': true,
+            'BTG/USD': true,
         };
         for (let i = 0; i < markets.length; i++) {
             let id = markets[i]['symbol'];
@@ -172,6 +175,7 @@ module.exports = class okcoinusd extends Exchange {
             let lot = Math.pow (10, -precision['amount']);
             let minAmount = markets[i]['minTradeSize'];
             let minPrice = Math.pow (10, -precision['price']);
+            let active = (markets[i]['online'] !== 0);
             let market = this.extend (this.fees['trading'], {
                 'id': id,
                 'symbol': symbol,
@@ -184,7 +188,7 @@ module.exports = class okcoinusd extends Exchange {
                 'spot': true,
                 'future': false,
                 'lot': lot,
-                'active': true,
+                'active': active,
                 'precision': precision,
                 'limits': {
                     'amount': {

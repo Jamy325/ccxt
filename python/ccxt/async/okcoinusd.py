@@ -162,6 +162,9 @@ class okcoinusd (Exchange):
             'ETC/USD': True,
             'ETH/USD': True,
             'LTC/USD': True,
+            'XRP/USD': True,
+            'EOS/USD': True,
+            'BTG/USD': True,
         }
         for i in range(0, len(markets)):
             id = markets[i]['symbol']
@@ -178,6 +181,7 @@ class okcoinusd (Exchange):
             lot = math.pow(10, -precision['amount'])
             minAmount = markets[i]['minTradeSize']
             minPrice = math.pow(10, -precision['price'])
+            active = (markets[i]['online'] != 0)
             market = self.extend(self.fees['trading'], {
                 'id': id,
                 'symbol': symbol,
@@ -190,7 +194,7 @@ class okcoinusd (Exchange):
                 'spot': True,
                 'future': False,
                 'lot': lot,
-                'active': True,
+                'active': active,
                 'precision': precision,
                 'limits': {
                     'amount': {
