@@ -314,13 +314,15 @@ class huobipro (Exchange):
             'amount': trade['amount'],
         }
 
-    async def fetch_trades(self, symbol, since=None, limit=None, params={}):
+    async def fetch_trades(self, symbol, since=None, limit=2000, params={}):
         await self.load_markets()
         market = self.market(symbol)
-        response = await self.marketGetHistoryTrade(self.extend({
+        request = {
             'symbol': market['id'],
-            'size': 2000,
-        }, params))
+        }
+        if limit is not None:
+            request['size'] = limit
+        response = await self.marketGetHistoryTrade(self.extend(request, params))
         data = response['data']
         result = []
         for i in range(0, len(data)):
@@ -341,14 +343,16 @@ class huobipro (Exchange):
             ohlcv['amount'],
         ]
 
-    async def fetch_ohlcv(self, symbol, timeframe='1m', since=None, limit=None, params={}):
+    async def fetch_ohlcv(self, symbol, timeframe='1m', since=None, limit=2000, params={}):
         await self.load_markets()
         market = self.market(symbol)
-        response = await self.marketGetHistoryKline(self.extend({
+        request = {
             'symbol': market['id'],
             'period': self.timeframes[timeframe],
-            'size': 2000,  # max = 2000
-        }, params))
+        }
+        if limit is not None:
+            request['size'] = limit
+        response = await self.marketGetHistoryKline(self.extend(request, params))
         return self.parse_ohlcvs(response['data'], market, timeframe, since, limit)
 
     async def load_accounts(self, reload=False):
@@ -526,7 +530,7 @@ class huobipro (Exchange):
         }
 
     def fee_to_precision(self, currency, fee):
-        return float(self.decimalToPrecision(fee, 0, self.currencies[currency]['precision']))
+        return float(self.decimal_to_precision(fee, 0, self.currencies[currency]['precision']))
 
     def calculate_fee(self, symbol, type, side, amount, price, takerOrMaker='taker', params={}):
         market = self.markets[symbol]
