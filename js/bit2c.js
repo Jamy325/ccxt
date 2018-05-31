@@ -3,6 +3,7 @@
 //  ---------------------------------------------------------------------------
 
 const Exchange = require ('./base/Exchange');
+const { ExchangeError } = require ('./base/errors');
 
 //  ---------------------------------------------------------------------------
 
@@ -15,6 +16,7 @@ module.exports = class bit2c extends Exchange {
             'rateLimit': 3000,
             'has': {
                 'CORS': false,
+                'fetchOpenOrders': true,
             },
             'urls': {
                 'logo': 'https://user-images.githubusercontent.com/1294454/27766119-3593220e-5ece-11e7-8b3a-5a041f6bcc3f.jpg',
@@ -104,19 +106,19 @@ module.exports = class bit2c extends Exchange {
             'pair': this.marketId (symbol),
         }, params));
         let timestamp = this.milliseconds ();
-        let averagePrice = parseFloat (ticker['av']);
-        let baseVolume = parseFloat (ticker['a']);
+        let averagePrice = this.safeFloat (ticker, 'av');
+        let baseVolume = this.safeFloat (ticker, 'a');
         let quoteVolume = baseVolume * averagePrice;
-        let last = parseFloat (ticker['ll']);
+        let last = this.safeFloat (ticker, 'll');
         return {
             'symbol': symbol,
             'timestamp': timestamp,
             'datetime': this.iso8601 (timestamp),
             'high': undefined,
             'low': undefined,
-            'bid': parseFloat (ticker['h']),
+            'bid': this.safeFloat (ticker, 'h'),
             'bidVolume': undefined,
-            'ask': parseFloat (ticker['l']),
+            'ask': this.safeFloat (ticker, 'l'),
             'askVolume': undefined,
             'vwap': undefined,
             'open': undefined,
@@ -200,5 +202,54 @@ module.exports = class bit2c extends Exchange {
             };
         }
         return { 'url': url, 'method': method, 'body': body, 'headers': headers };
+    }
+
+    async fetchOpenOrders (symbol = undefined, since = undefined, limit = undefined, params = {}) {
+        await this.loadMarkets ();
+        if (typeof symbol === 'undefined')
+            throw new ExchangeError (this.id + ' fetchOpenOrders() requires a symbol argument');
+        let market = this.market (symbol);
+        let response = await this.privateGetOrderMyOrders (this.extend ({
+            'pair': market['id'],
+        }, params));
+        let orders = this.safeValue (response, market['id'], {});
+        let asks = this.safeValue (orders, 'ask');
+        let bids = this.safeValue (orders, 'bid');
+        return this.parseOrders (this.arrayConcat (asks, bids), market, since, limit);
+    }
+
+    parseOrder (order, market = undefined) {
+        let timestamp = order['created'];
+        let price = order['price'];
+        let amount = order['amount'];
+        let cost = price * amount;
+        let symbol = undefined;
+        if (typeof market !== 'undefined')
+            symbol = market['symbol'];
+        let side = this.safeValue (order, 'type');
+        if (side === 0) {
+            side = 'buy';
+        } else if (side === 1) {
+            side = 'sell';
+        }
+        let id = this.safeString (order, 'id');
+        return {
+            'id': id,
+            'timestamp': timestamp,
+            'datetime': this.iso8601 (timestamp),
+            'lastTradeTimestamp': undefined,
+            'status': this.safeString (order, 'status'),
+            'symbol': symbol,
+            'type': undefined,
+            'side': side,
+            'price': price,
+            'amount': amount,
+            'filled': undefined,
+            'remaining': undefined,
+            'cost': cost,
+            'trades': undefined,
+            'fee': undefined,
+            'info': order,
+        };
     }
 };
