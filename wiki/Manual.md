@@ -53,7 +53,7 @@ Full public and private HTTP REST APIs for all exchanges are implemented. WebSoc
 
 # Exchanges
 
-The ccxt library currently supports the following 116 cryptocurrency exchange markets and trading APIs:
+The ccxt library currently supports the following 117 cryptocurrency exchange markets and trading APIs:
 
 |                                                                                                                           | id                 | name                                                                         | ver | doc                                                                                          | countries                               |
 |---------------------------------------------------------------------------------------------------------------------------|--------------------|------------------------------------------------------------------------------|:---:|:--------------------------------------------------------------------------------------------:|-----------------------------------------|
@@ -112,6 +112,7 @@ The ccxt library currently supports the following 116 cryptocurrency exchange ma
 |![coinspot](https://user-images.githubusercontent.com/1294454/28208429-3cacdf9a-6896-11e7-854e-4c79a772a30f.jpg)           | coinspot           | [CoinSpot](https://www.coinspot.com.au)                                      | *   | [API](https://www.coinspot.com.au/api)                                                       | Australia                               |
 |![cointiger](https://user-images.githubusercontent.com/1294454/39797261-d58df196-5363-11e8-9880-2ec78ec5bd25.jpg)          | cointiger          | [CoinTiger](https://www.cointiger.pro/exchange/register.html?refCode=FfvDtt) | 1   | [API](https://github.com/cointiger/api-docs-en/wiki)                                         | China                                   |
 |![coolcoin](https://user-images.githubusercontent.com/1294454/36770529-be7b1a04-1c5b-11e8-9600-d11f1996b539.jpg)           | coolcoin           | [CoolCoin](https://www.coolcoin.com)                                         | *   | [API](https://www.coolcoin.com/help.api.html)                                                | Hong Kong                               |
+|![crypton](https://user-images.githubusercontent.com/1294454/41334251-905b5a78-6eed-11e8-91b9-f3aa435078a1.jpg)            | crypton            | [Crypton](https://cryptonbtc.com)                                            | 1   | [API](https://cryptonbtc.docs.apiary.io/)                                                    | EU                                      |
 |![cryptopia](https://user-images.githubusercontent.com/1294454/29484394-7b4ea6e2-84c6-11e7-83e5-1fccf4b2dc81.jpg)          | cryptopia          | [Cryptopia](https://www.cryptopia.co.nz/Register?referrer=kroitor)           | *   | [API](https://www.cryptopia.co.nz/Forum/Category/45)                                         | New Zealand                             |
 |![dsx](https://user-images.githubusercontent.com/1294454/27990275-1413158a-645a-11e7-931c-94717f7510e3.jpg)                | dsx                | [DSX](https://dsx.uk)                                                        | 3   | [API](https://api.dsx.uk)                                                                    | UK                                      |
 |![ethfinex](https://user-images.githubusercontent.com/1294454/37555526-7018a77c-29f9-11e8-8835-8e415c038a18.jpg)           | ethfinex           | [Ethfinex](https://www.ethfinex.com)                                         | 1   | [API](https://bitfinex.readme.io/v1/docs)                                                    | British Virgin Islands                  |
@@ -1911,9 +1912,17 @@ if ($exchange->has['createMarketOrder']) {
 }
 ```
 
-It is also possible to emulate a `market` order with a `limit` order. **WARNING this method can be risky due to high volatility, use it at your own risk and only use it when you know really well what you're doing!**. Most of the time a `market sell` can be emulated with a `limit sell` at a very low price – the exchange will automatically make it a taker order for market price (the price that is currently in your best interest from the ones that are available in the order book). When the exchange detects that you're selling for a very low price it will automatically offer you the best buyer price available from the order book. That is effectively the same as placing a market sell order. Thus market orders can be emulated with limit orders (where missing). The opposite is also true – a `market buy` can be emulated with a `limit buy` for a very high price. Most exchanges will again close your order for best available price, that is, the market price.
+##### Emulating Market Orders With Limit Orders
 
-However, you should never rely on that entirely, **ALWAYS test it with a small amount first!**. You can try that in their web interface first to verify the logic. You can sell the minimal amount at a specified limit price (an affordable amount to lose, just in case) and then check the actual filling price in trade history.
+It is also possible to emulate a `market` order with a `limit` order.
+
+**WARNING this method can be risky due to high volatility, use it at your own risk and only use it when you know really well what you're doing!**
+
+Most of the time a `market sell` can be emulated with a `limit sell` at a very low price – the exchange will automatically make it a taker order for market price (the price that is currently in your best interest from the ones that are available in the order book). When the exchange detects that you're selling for a very low price it will automatically offer you the best buyer price available from the order book. That is effectively the same as placing a market sell order. Thus market orders can be emulated with limit orders (where missing).
+
+The opposite is also true – a `market buy` can be emulated with a `limit buy` for a very high price. Most exchanges will again close your order for best available price, that is, the market price.
+
+However, you should never rely on that entirely, **ALWAYS test it with a small amount first!** You can try that in their web interface first to verify the logic. You can sell the minimal amount at a specified limit price (an affordable amount to lose, just in case) and then check the actual filling price in trade history.
 
 #### Limit Orders
 

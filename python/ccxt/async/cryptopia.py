@@ -722,8 +722,11 @@ class cryptopia (Exchange):
                     raise ExchangeError(feedback)
 
     def sanitize_broken_json_string(self, jsonString):
-        pos = jsonString.find('{')
-        return jsonString.substr(pos) if (pos >= 0) else jsonString
+        # sometimes cryptopia will return a unicode symbol before actual JSON string.
+        indexOfBracket = jsonString.find('{')
+        if indexOfBracket >= 0:
+            return jsonString[indexOfBracket:]
+        return jsonString
 
     def parse_json(self, response, responseBody, url, method):
         return super(cryptopia, self).parseJson(response, self.sanitize_broken_json_string(responseBody), url, method)
