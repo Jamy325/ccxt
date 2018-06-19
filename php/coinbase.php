@@ -143,7 +143,7 @@ class coinbase extends Exchange {
                 'BCH/USD' => array ( 'id' => 'bch-usd', 'symbol' => 'BCH/USD', 'base' => 'BCH', 'quote' => 'USD' ),
             ),
             'options' => array (
-                'acocunts' => array (
+                'accounts' => array (
                     'wallet',
                     'fiat',
                     // 'vault',
@@ -303,7 +303,7 @@ class coinbase extends Exchange {
     }
 
     public function handle_errors ($code, $reason, $url, $method, $headers, $body) {
-        if (gettype ($body) != 'string')
+        if (gettype ($body) !== 'string')
             return; // fallback to default error handler
         if (strlen ($body) < 2)
             return; // fallback to default error handler

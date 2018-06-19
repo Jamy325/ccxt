@@ -116,7 +116,7 @@ module.exports = class bibox extends Exchange {
             let symbol = base + '/' + quote;
             let id = base + '_' + quote;
             let precision = {
-                'amount': 8,
+                'amount': 4,
                 'price': 8,
             };
             result.push ({
@@ -242,7 +242,14 @@ module.exports = class bibox extends Exchange {
         }
         let fee = undefined;
         let feeCost = this.safeFloat (trade, 'fee');
-        let feeCurrency = undefined; // todo: deduce from market if market is defined
+        let feeCurrency = this.safeString (trade, 'fee_symbol');
+        if (typeof feeCurrency !== 'undefined') {
+            if (feeCurrency in this.currencies_by_id) {
+                feeCurrency = this.currencies_by_id[feeCurrency]['code'];
+            } else {
+                feeCurrency = this.commonCurrencyCode (feeCurrency);
+            }
+        }
         let feeRate = undefined; // todo: deduce from market if market is defined
         let price = this.safeFloat (trade, 'price');
         let amount = this.safeFloat (trade, 'amount');
@@ -448,7 +455,11 @@ module.exports = class bibox extends Exchange {
                 'id': id,
             }, params),
         });
-        return this.parseOrder (response['result']);
+        let order = this.safeValue (response, 'result');
+        if (this.isEmpty (order)) {
+            throw new OrderNotFound (this.id + ' order ' + id + ' not found');
+        }
+        return this.parseOrder (order);
     }
 
     parseOrder (order, market = undefined) {
@@ -468,9 +479,11 @@ module.exports = class bibox extends Exchange {
         let type = (order['order_type'] === 1) ? 'market' : 'limit';
         let timestamp = order['createdAt'];
         let price = this.safeFloat (order, 'price');
+        price = this.safeFloat (order, 'deal_price', price);
         let filled = this.safeFloat (order, 'deal_amount');
         let amount = this.safeFloat (order, 'amount');
         let cost = this.safeFloat (order, 'money');
+        cost = this.safeFloat (order, 'deal_money', cost);
         let remaining = undefined;
         if (typeof filled !== 'undefined') {
             if (typeof amount !== 'undefined')
@@ -505,7 +518,7 @@ module.exports = class bibox extends Exchange {
     parseOrderStatus (status) {
         let statuses = {
             // original comments from bibox:
-            '1': 'pending', // pending
+            '1': 'open', // pending
             '2': 'open', // part completed
             '3': 'closed', // completed
             '4': 'canceled', // part canceled

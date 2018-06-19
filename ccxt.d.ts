@@ -211,7 +211,7 @@ declare module 'ccxt' {
         aggregate: any;
         truncate: any;
         name: string;
-        nodeVersion: string;
+        // nodeVersion: string;
         fees: object;
         enableRateLimit: boolean;
         countries: string;
@@ -296,6 +296,7 @@ declare module 'ccxt' {
     export class acx extends Exchange {}
     export class allcoin extends okcoinusd {}
     export class anxpro extends Exchange {}
+    export class anybits extends bitsane {}
     export class bibox extends Exchange {}
     export class bigone extends Exchange {}
     export class binance extends Exchange {}
@@ -310,6 +311,7 @@ declare module 'ccxt' {
     export class bitlish extends Exchange {}
     export class bitmarket extends Exchange {}
     export class bitmex extends Exchange {}
+    export class bitsane extends Exchange {}
     export class bitso extends Exchange {}
     export class bitstamp extends Exchange {}
     export class bitstamp1 extends Exchange {}
