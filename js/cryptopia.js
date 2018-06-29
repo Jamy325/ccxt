@@ -99,16 +99,21 @@ module.exports = class cryptopia extends Exchange {
                 'BAT': 'BatCoin',
                 'BLZ': 'BlazeCoin',
                 'BTG': 'Bitgem',
+                'CAN': 'CanYa',
+                'CAT': 'Catcoin',
                 'CC': 'CCX',
                 'CMT': 'Comet',
                 'EPC': 'ExperienceCoin',
                 'FCN': 'Facilecoin',
                 'FUEL': 'FC2', // FuelCoin != FUEL
                 'HAV': 'Havecoin',
+                'KARM': 'KARMA',
                 'LBTC': 'LiteBitcoin',
                 'LDC': 'LADACoin',
                 'MARKS': 'Bitmark',
                 'NET': 'NetCoin',
+                'RED': 'RedCoin',
+                'STC': 'StopTrumpCoin',
                 'QBT': 'Cubits',
                 'WRC': 'WarCoin',
             },
@@ -695,7 +700,6 @@ module.exports = class cryptopia extends Exchange {
         return {
             'currency': code,
             'address': address,
-            'status': 'ok',
             'info': response,
         };
     }

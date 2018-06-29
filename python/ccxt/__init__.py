@@ -22,7 +22,7 @@
 
 # ----------------------------------------------------------------------------
 
-__version__ = '1.14.224'
+__version__ = '1.14.295'
 
 # ----------------------------------------------------------------------------
 
@@ -54,6 +54,7 @@ from ccxt.base.errors import DDoSProtection                 # noqa: F401
 from ccxt.base.errors import RequestTimeout                 # noqa: F401
 from ccxt.base.errors import ExchangeNotAvailable           # noqa: F401
 from ccxt.base.errors import InvalidAddress                 # noqa: F401
+from ccxt.base.errors import AddressPending                 # noqa: F401
 from ccxt.base.errors import BadResponse                    # noqa: F401
 from ccxt.base.errors import NullResponse                   # noqa: F401
 
@@ -101,10 +102,12 @@ from ccxt.chbtc import chbtc                                # noqa: F401
 from ccxt.chilebit import chilebit                          # noqa: F401
 from ccxt.cobinhood import cobinhood                        # noqa: F401
 from ccxt.coinbase import coinbase                          # noqa: F401
+from ccxt.coinbasepro import coinbasepro                    # noqa: F401
 from ccxt.coincheck import coincheck                        # noqa: F401
 from ccxt.coinegg import coinegg                            # noqa: F401
 from ccxt.coinex import coinex                              # noqa: F401
 from ccxt.coinexchange import coinexchange                  # noqa: F401
+from ccxt.coinfalcon import coinfalcon                      # noqa: F401
 from ccxt.coinfloor import coinfloor                        # noqa: F401
 from ccxt.coingi import coingi                              # noqa: F401
 from ccxt.coinmarketcap import coinmarketcap                # noqa: F401
@@ -117,6 +120,7 @@ from ccxt.cointiger import cointiger                        # noqa: F401
 from ccxt.coolcoin import coolcoin                          # noqa: F401
 from ccxt.crypton import crypton                            # noqa: F401
 from ccxt.cryptopia import cryptopia                        # noqa: F401
+from ccxt.deribit import deribit                            # noqa: F401
 from ccxt.dsx import dsx                                    # noqa: F401
 from ccxt.ethfinex import ethfinex                          # noqa: F401
 from ccxt.exmo import exmo                                  # noqa: F401
@@ -222,10 +226,12 @@ exchanges = [
     'chilebit',
     'cobinhood',
     'coinbase',
+    'coinbasepro',
     'coincheck',
     'coinegg',
     'coinex',
     'coinexchange',
+    'coinfalcon',
     'coinfloor',
     'coingi',
     'coinmarketcap',
@@ -238,6 +244,7 @@ exchanges = [
     'coolcoin',
     'crypton',
     'cryptopia',
+    'deribit',
     'dsx',
     'ethfinex',
     'exmo',

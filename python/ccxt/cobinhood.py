@@ -47,8 +47,8 @@ class cobinhood (Exchange):
                 '6h': '6h',
                 '12h': '12h',
                 '1d': '1D',
-                '7d': '7D',
-                '14d': '14D',
+                '1w': '7D',
+                '2w': '14D',
                 '1M': '1M',
             },
             'urls': {
@@ -155,7 +155,6 @@ class cobinhood (Exchange):
                 'code': code,
                 'name': currency['name'],
                 'active': True,
-                'status': 'ok',
                 'fiat': False,
                 'precision': self.precision_from_string(currency['min_unit']),
                 'limits': {
@@ -500,7 +499,6 @@ class cobinhood (Exchange):
         return {
             'currency': code,
             'address': address,
-            'status': 'ok',
             'info': response,
         }
 
@@ -518,7 +516,6 @@ class cobinhood (Exchange):
         return {
             'currency': code,
             'address': address,
-            'status': 'ok',
             'info': response,
         }
 

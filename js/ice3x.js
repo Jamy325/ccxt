@@ -97,7 +97,6 @@ module.exports = class ice3x extends Exchange {
                 'code': code,
                 'name': currency['name'],
                 'active': true,
-                'status': 'ok',
                 'precision': precision,
                 'limits': {
                     'amount': {
@@ -400,9 +399,8 @@ module.exports = class ice3x extends Exchange {
     sign (path, api = 'public', method = 'GET', params = {}, headers = undefined, body = undefined) {
         let url = this.urls['api'] + '/' + path;
         if (api === 'public') {
-            params = this.urlencode (params);
-            if (params.length)
-                url += '?' + params;
+            if (Object.keys (params).length)
+                url += '?' + this.urlencode (params);
         } else {
             this.checkRequiredCredentials ();
             body = this.urlencode (this.extend ({

@@ -48,6 +48,7 @@ class bitmex (Exchange):
                     'https://github.com/BitMEX/api-connectors/tree/master/official-http',
                 ],
                 'fees': 'https://www.bitmex.com/app/fees',
+                'referral': 'https://www.bitmex.com/register/rm3C16',
             },
             'api': {
                 'public': {
@@ -140,7 +141,7 @@ class bitmex (Exchange):
                 'Access Denied': PermissionDenied,
             },
             'options': {
-                'fetchTickerQuotes': True,
+                'fetchTickerQuotes': False,
             },
         })
 
@@ -435,7 +436,10 @@ class bitmex (Exchange):
         price = self.safe_float(order, 'price')
         amount = self.safe_float(order, 'orderQty')
         filled = self.safe_float(order, 'cumQty', 0.0)
-        remaining = max(amount - filled, 0.0)
+        remaining = None
+        if amount is not None:
+            if filled is not None:
+                remaining = max(amount - filled, 0.0)
         cost = None
         if price is not None:
             if filled is not None:

@@ -54,7 +54,7 @@ class bibox (Exchange):
                 '15m': '15min',
                 '30m': '30min',
                 '1h': '1hour',
-                '8h': '12hour',
+                '12h': '12hour',
                 '1d': 'day',
                 '1w': 'week',
             },
@@ -343,7 +343,6 @@ class bibox (Exchange):
                 'info': currency,
                 'name': currency['name'],
                 'active': active,
-                'status': 'ok',
                 'fee': None,
                 'precision': precision,
                 'limits': {
@@ -436,6 +435,7 @@ class bibox (Exchange):
         return response
 
     async def fetch_order(self, id, symbol=None, params={}):
+        await self.load_markets()
         response = await self.privatePostOrderpending({
             'cmd': 'orderpending/order',
             'body': self.extend({

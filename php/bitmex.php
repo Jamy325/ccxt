@@ -43,6 +43,7 @@ class bitmex extends Exchange {
                     'https://github.com/BitMEX/api-connectors/tree/master/official-http',
                 ),
                 'fees' => 'https://www.bitmex.com/app/fees',
+                'referral' => 'https://www.bitmex.com/register/rm3C16',
             ),
             'api' => array (
                 'public' => array (
@@ -135,7 +136,7 @@ class bitmex extends Exchange {
                 'Access Denied' => '\\ccxt\\PermissionDenied',
             ),
             'options' => array (
-                'fetchTickerQuotes' => true,
+                'fetchTickerQuotes' => false,
             ),
         ));
     }
@@ -455,7 +456,12 @@ class bitmex extends Exchange {
         $price = $this->safe_float($order, 'price');
         $amount = $this->safe_float($order, 'orderQty');
         $filled = $this->safe_float($order, 'cumQty', 0.0);
-        $remaining = max ($amount - $filled, 0.0);
+        $remaining = null;
+        if ($amount !== null) {
+            if ($filled !== null) {
+                $remaining = max ($amount - $filled, 0.0);
+            }
+        }
         $cost = null;
         if ($price !== null)
             if ($filled !== null)
