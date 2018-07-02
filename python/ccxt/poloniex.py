@@ -27,7 +27,7 @@ class poloniex (Exchange):
         return self.deep_extend(super(poloniex, self).describe(), {
             'id': 'poloniex',
             'name': 'Poloniex',
-            'countries': 'US',
+            'countries': ['US'],
             'rateLimit': 1000,  # up to 6 calls per second
             'has': {
                 'createDepositAddress': True,
@@ -720,6 +720,7 @@ class poloniex (Exchange):
         return self.parse_trades(trades)
 
     def create_deposit_address(self, code, params={}):
+        self.load_markets()
         currency = self.currency(code)
         response = self.privatePostGenerateNewAddress({
             'currency': currency['id'],
@@ -736,6 +737,7 @@ class poloniex (Exchange):
         }
 
     def fetch_deposit_address(self, code, params={}):
+        self.load_markets()
         currency = self.currency(code)
         response = self.privatePostReturnDepositAddresses()
         currencyId = currency['id']

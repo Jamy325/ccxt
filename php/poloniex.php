@@ -13,7 +13,7 @@ class poloniex extends Exchange {
         return array_replace_recursive (parent::describe (), array (
             'id' => 'poloniex',
             'name' => 'Poloniex',
-            'countries' => 'US',
+            'countries' => array ( 'US' ),
             'rateLimit' => 1000, // up to 6 calls per second
             'has' => array (
                 'createDepositAddress' => true,
@@ -770,6 +770,7 @@ class poloniex extends Exchange {
     }
 
     public function create_deposit_address ($code, $params = array ()) {
+        $this->load_markets();
         $currency = $this->currency ($code);
         $response = $this->privatePostGenerateNewAddress (array (
             'currency' => $currency['id'],
@@ -787,6 +788,7 @@ class poloniex extends Exchange {
     }
 
     public function fetch_deposit_address ($code, $params = array ()) {
+        $this->load_markets();
         $currency = $this->currency ($code);
         $response = $this->privatePostReturnDepositAddresses ();
         $currencyId = $currency['id'];

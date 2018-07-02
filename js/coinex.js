@@ -13,7 +13,7 @@ module.exports = class coinex extends Exchange {
             'id': 'coinex',
             'name': 'CoinEx',
             'version': 'v1',
-            'countries': 'CN',
+            'countries': [ 'CN' ],
             'rateLimit': 1000,
             'has': {
                 'fetchTickers': true,
@@ -48,6 +48,7 @@ module.exports = class coinex extends Exchange {
                 'www': 'https://www.coinex.com',
                 'doc': 'https://github.com/coinexcom/coinex_exchange_api/wiki',
                 'fees': 'https://www.coinex.com/fees',
+                'referral': 'https://www.coinex.com/account/signup?refer_code=yw5fz',
             },
             'api': {
                 'web': {

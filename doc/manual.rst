@@ -152,7 +152,7 @@ The ccxt library currently supports the following 122 cryptocurrency exchange ma
 +----------------------+--------------------+---------------------------------------------------------------------------------+-----+-------------------------------------------------------------------------------------------------+------------------------------------------+
 | |coinegg|            | coinegg            | `CoinEgg <https://www.coinegg.com>`__                                           | \*  | `API <https://www.coinegg.com/explain.api.html>`__                                              | China, UK                                |
 +----------------------+--------------------+---------------------------------------------------------------------------------+-----+-------------------------------------------------------------------------------------------------+------------------------------------------+
-| |coinex|             | coinex             | `CoinEx <https://www.coinex.com>`__                                             | 1   | `API <https://github.com/coinexcom/coinex_exchange_api/wiki>`__                                 | China                                    |
+| |coinex|             | coinex             | `CoinEx <https://www.coinex.com/account/signup?refer_code=yw5fz>`__             | 1   | `API <https://github.com/coinexcom/coinex_exchange_api/wiki>`__                                 | China                                    |
 +----------------------+--------------------+---------------------------------------------------------------------------------+-----+-------------------------------------------------------------------------------------------------+------------------------------------------+
 | |coinexchange|       | coinexchange       | `CoinExchange <https://www.coinexchange.io>`__                                  | \*  | `API <https://coinexchangeio.github.io/slate/>`__                                               | India, Japan, South Korea, Vietnam, US   |
 +----------------------+--------------------+---------------------------------------------------------------------------------+-----+-------------------------------------------------------------------------------------------------+------------------------------------------+
@@ -240,7 +240,7 @@ The ccxt library currently supports the following 122 cryptocurrency exchange ma
 +----------------------+--------------------+---------------------------------------------------------------------------------+-----+-------------------------------------------------------------------------------------------------+------------------------------------------+
 | |lakebtc|            | lakebtc            | `LakeBTC <https://www.lakebtc.com>`__                                           | 2   | `API <https://www.lakebtc.com/s/api_v2>`__                                                      | US                                       |
 +----------------------+--------------------+---------------------------------------------------------------------------------+-----+-------------------------------------------------------------------------------------------------+------------------------------------------+
-| |lbank|              | lbank              | `LBank <https://www.lbank.info>`__                                              | 1   | `API <https://www.lbank.info/api/api-overview>`__                                               | China                                    |
+| |lbank|              | lbank              | `LBank <https://www.lbank.info>`__                                              | 1   | `API <https://github.com/LBank-exchange/lbank-official-api-docs>`__                             | China                                    |
 +----------------------+--------------------+---------------------------------------------------------------------------------+-----+-------------------------------------------------------------------------------------------------+------------------------------------------+
 | |liqui|              | liqui              | `Liqui <https://liqui.io>`__                                                    | 3   | `API <https://liqui.io/api>`__                                                                  | Ukraine                                  |
 +----------------------+--------------------+---------------------------------------------------------------------------------+-----+-------------------------------------------------------------------------------------------------+------------------------------------------+
@@ -381,7 +381,7 @@ Here’s an overview of base exchange properties with values added for example:
    {
        'id':   'exchange'                  // lowercase string exchange id
        'name': 'Exchange'                  // human-readable string
-       'countries': [ 'US', 'CN', 'EU' ],  // string or array of ISO country codes
+       'countries': [ 'US', 'CN', 'EU' ],  // array of ISO country codes
        'urls': {
            'api': 'https://api.example.com/data',  // string or dictionary of base API URLs
            'www': 'https://www.example.com'        // string website URL
@@ -445,7 +445,7 @@ Below is a detailed description of each of the base exchange properties:
 
 -  ``name``: This is a string literal containing the human-readable exchange name.
 
--  ``countries``: A string literal or an array of string literals of 2-symbol ISO country codes, where the exchange is operating from.
+-  ``countries``: An array of string literals of 2-symbol ISO country codes, where the exchange is operating from.
 
 -  ``urls['api']``: The single string literal base URL for API calls or an associative array of separate URLs for private and public APIs.
 
@@ -874,7 +874,7 @@ Historically various symbolic names have been used to designate same trading pai
 -  ``BCC → BCH``: The Bitcoin Cash fork is often called with two different symbolic names: ``BCC`` and ``BCH``. The name ``BCC`` is ambiguous for Bitcoin Cash, it is confused with BitConnect. The ccxt library will convert ``BCC`` to ``BCH`` where it is appropriate (some exchanges and aggregators confuse them).
 -  ``DRK → DASH``: ``DASH`` was Darkcoin then became Dash (`read more <https://minergate.com/blog/dashcoin-and-dash/>`__).
 -  ``DSH → DASH``: Try not to confuse symbols and currencies. The ``DSH`` (Dashcoin) is not the same as ``DASH`` (Dash). Some exchanges have ``DASH`` labelled inconsistently as ``DSH``, the ccxt library does a correction for that as well (``DSH → DASH``), but only on certain exchanges that have these two currencies confused, whereas most exchanges have them both correct. Just remember that ``DASH/BTC`` is not the same as ``DSH/BTC``.
--  ``NANO`` → ``XRB``: ``NANO`` is the newer code for Raiblocks, however, CCXT unified API uses the older ``XRB`` for backward-compatibility with existing exchanges and data providers.
+-  ``XRB`` → ``NANO``: ``NANO`` is the newer code for RaiBlocks, thus, CCXT unified API uses will replace the older ``XRB`` with ``NANO`` where needed. https://hackernoon.com/nano-rebrand-announcement-9101528a7b76
 
 Notes On Naming Consistency
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1530,7 +1530,7 @@ You can call the unified ``fetchOHLCV`` / ``fetch_ohlcv`` method to get the list
            var_dump ($exchange->fetch_ohlcv ($symbol, '1M')); // one month
        }
 
-To get the list of available timeframes for your exchange see the ``timeframes`` property. Note that it is only populated when ``has['fetchTickers']`` is true as well.
+To get the list of available timeframes for your exchange see the ``timeframes`` property. Note that it is only populated when ``has['fetchOHLCV']`` is true as well.
 
 **There’s a limit on how far back in time your requests can go.** Most of exchanges will not allow to query detailed candlestick history (like those for 1-minute and 5-minute timeframes) too far in the past. They usually keep a reasonable amount of most recent candles, like 1000 last candles for any timeframe is more than enough for most of needs. You can work around that limitation by continuously fetching (aka *REST polling*) latest OHLCVs and storing them in a CSV file or in a database.
 

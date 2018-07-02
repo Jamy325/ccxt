@@ -12,7 +12,7 @@ module.exports = class bitz extends Exchange {
         return this.deepExtend (super.describe (), {
             'id': 'bitz',
             'name': 'Bit-Z',
-            'countries': 'HK',
+            'countries': [ 'HK' ],
             'rateLimit': 2000,
             'version': 'v1',
             'userAgent': this.userAgents['chrome'],
@@ -128,6 +128,7 @@ module.exports = class bitz extends Exchange {
                 'lastNonceTimestamp': 0,
             },
             'commonCurrencies': {
+                'XRB': 'NANO',
                 'PXC': 'Pixiecoin',
             },
         });
