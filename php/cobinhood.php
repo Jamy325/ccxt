@@ -24,10 +24,13 @@ class cobinhood extends Exchange {
                 'fetchClosedOrders' => true,
                 'fetchOrderTrades' => true,
                 'fetchOrder' => true,
-                'fetchDepositAddress' => false,
-                'createDepositAddress' => false,
+                'fetchDepositAddress' => true,
+                'createDepositAddress' => true,
+                'fetchDeposits' => true,
+                'fetchWithdrawals' => true,
                 'withdraw' => false,
                 'fetchMyTrades' => true,
+                'editOrder' => true,
             ),
             'requiredCredentials' => array (
                 'apiKey' => true,
@@ -105,9 +108,23 @@ class cobinhood extends Exchange {
                         'wallet/generic_deposits/{generic_deposit_id}',
                         'wallet/generic_withdrawals',
                         'wallet/generic_withdrawals/{generic_withdrawal_id}',
+                        // older endpoints
+                        'wallet/deposit_addresses',
+                        'wallet/withdrawal_addresses',
+                        'wallet/withdrawals/{withdrawal_id}',
+                        'wallet/withdrawals',
+                        'wallet/deposits/{deposit_id}',
+                        'wallet/deposits',
                     ),
                     'post' => array (
                         'trading/orders',
+                        // older endpoints
+                        'wallet/deposit_addresses',
+                        'wallet/withdrawal_addresses',
+                        'wallet/withdrawals',
+                    ),
+                    'put' => array (
+                        'trading/orders/{order_id}',
                     ),
                     'delete' => array (
                         'trading/orders/{order_id}',
@@ -132,6 +149,7 @@ class cobinhood extends Exchange {
             ),
             'commonCurrencies' => array (
                 'SMT' => 'SocialMedia.Market',
+                'MTN' => 'Motion Token',
             ),
         ));
     }
@@ -230,11 +248,18 @@ class cobinhood extends Exchange {
     }
 
     public function parse_ticker ($ticker, $market = null) {
+        $symbol = null;
         if ($market === null) {
             $marketId = $this->safe_string($ticker, 'trading_pair_id');
-            $market = $this->find_market($marketId);
+            if (is_array ($this->markets_by_id) && array_key_exists ($marketId, $this->markets_by_id)) {
+                $market = $this->markets_by_id[$marketId];
+            } else {
+                list ($baseId, $quoteId) = explode ('-', $marketId);
+                $base = $this->common_currency_code($baseId);
+                $quote = $this->common_currency_code($quoteId);
+                $symbol = $base . '/' . $quote;
+            }
         }
-        $symbol = null;
         if ($market !== null)
             $symbol = $market['symbol'];
         $timestamp = $this->safe_integer($ticker, 'timestamp');
@@ -303,7 +328,7 @@ class cobinhood extends Exchange {
         $price = $this->safe_float($trade, 'price');
         $amount = $this->safe_float($trade, 'size');
         $cost = $price * $amount;
-        $side = $trade['maker_side'] === 'bid' ? 'sell' : 'buy';
+        $side = ($trade['maker_side'] === 'bid') ? 'sell' : 'buy';
         return array (
             'info' => $trade,
             'timestamp' => $timestamp,
@@ -408,28 +433,44 @@ class cobinhood extends Exchange {
     }
 
     public function parse_order ($order, $market = null) {
+        //
+        //     {
+        //         'completed_at' => None,
+        //         'eq_price' => '0',
+        //         'filled' => '0',
+        //         'id' => '88426800-beae-4407-b4a1-f65cef693542',
+        //         'price' => '0.00000507',
+        //         'side' => 'bid',
+        //         'size' => '3503.6489',
+        //         'source' => 'exchange',
+        //         'state' => 'open',
+        //         'timestamp' => 1535258403597,
+        //         'trading_pair_id' => 'ACT-BTC',
+        //         'type' => 'limit',
+        //     }
+        //
         $symbol = null;
         if ($market === null) {
-            $marketId = $this->safe_string($order, 'trading_pair');
-            $marketId = $this->safe_string($order, 'trading_pair_id', $marketId);
+            $marketId = $this->safe_string_2($order, 'trading_pair', 'trading_pair_id');
             $market = $this->safe_value($this->markets_by_id, $marketId);
         }
         if ($market !== null)
             $symbol = $market['symbol'];
         $timestamp = $this->safe_integer($order, 'timestamp');
-        $price = $this->safe_float($order, 'eq_price');
+        $price = $this->safe_float($order, 'price');
+        $average = $this->safe_float($order, 'eq_price');
         $amount = $this->safe_float($order, 'size');
         $filled = $this->safe_float($order, 'filled');
         $remaining = null;
         $cost = null;
+        if ($filled !== null && $average !== null) {
+            $cost = $average * $filled;
+        } else if ($average !== null) {
+            $cost = $average * $amount;
+        }
         if ($amount !== null) {
             if ($filled !== null) {
                 $remaining = $amount - $filled;
-            }
-            if ($filled !== null && $price !== null) {
-                $cost = $price * $filled;
-            } else if ($price !== null) {
-                $cost = $price * $amount;
             }
         }
         $status = $this->parse_order_status($this->safe_string($order, 'state'));
@@ -450,6 +491,7 @@ class cobinhood extends Exchange {
             'side' => $side,
             'price' => $price,
             'cost' => $cost,
+            'average' => $average,
             'amount' => $amount,
             'filled' => $filled,
             'remaining' => $remaining,
@@ -467,7 +509,7 @@ class cobinhood extends Exchange {
             'trading_pair_id' => $market['id'],
             'type' => $type, // $market, limit, stop, stop_limit
             'side' => $side,
-            'size' => $this->amount_to_string($symbol, $amount),
+            'size' => $this->amount_to_precision($symbol, $amount),
         );
         if ($type !== 'market')
             $request['price'] = $this->price_to_precision($symbol, $price);
@@ -476,6 +518,17 @@ class cobinhood extends Exchange {
         $id = $order['id'];
         $this->orders[$id] = $order;
         return $order;
+    }
+
+    public function edit_order ($id, $symbol, $type, $side, $amount, $price, $params = array ()) {
+        $response = $this->privatePutTradingOrdersOrderId (array_merge (array (
+            'order_id' => $id,
+            'price' => $this->price_to_precision($symbol, $price),
+            'size' => $this->amount_to_precision($symbol, $amount),
+        ), $params));
+        return $this->parse_order(array_merge ($response, array (
+            'id' => $id,
+        )));
     }
 
     public function cancel_order ($id, $symbol = null, $params = array ()) {
@@ -522,6 +575,160 @@ class cobinhood extends Exchange {
         }
         $response = $this->privateGetTradingTrades (array_merge ($request, $params));
         return $this->parse_trades($response['result']['trades'], $market, $since, $limit);
+    }
+
+    public function create_deposit_address ($code, $params = array ()) {
+        $this->load_markets();
+        $currency = $this->currency ($code);
+        $response = $this->privatePostWalletDepositAddresses (array (
+            'currency' => $currency['id'],
+        ));
+        $address = $this->safe_string($response['result']['deposit_address'], 'address');
+        $this->check_address($address);
+        return array (
+            'currency' => $code,
+            'address' => $address,
+            'info' => $response,
+        );
+    }
+
+    public function fetch_deposit_address ($code, $params = array ()) {
+        $this->load_markets();
+        $currency = $this->currency ($code);
+        $response = $this->privateGetWalletDepositAddresses (array_merge (array (
+            'currency' => $currency['id'],
+        ), $params));
+        //
+        //     { success =>    true,
+        //        result => { deposit_addresses => array ( {       $address => "abcdefg",
+        //                                         blockchain_id => "eosio",
+        //                                            created_at =>  1536768050235,
+        //                                              $currency => "EOS",
+        //                                                  memo => "12345678",
+        //                                                  type => "exchange"      } ) } }
+        //
+        $addresses = $this->safe_value($response['result'], 'deposit_addresses', array ());
+        $address = null;
+        $tag = null;
+        if (strlen ($addresses) > 0) {
+            $address = $this->safe_string($addresses[0], 'address');
+            $tag = $this->safe_string_2($addresses[0], 'memo', 'tag');
+        }
+        $this->check_address($address);
+        return array (
+            'currency' => $code,
+            'address' => $address,
+            'tag' => $tag,
+            'info' => $response,
+        );
+    }
+
+    public function withdraw ($code, $amount, $address, $params = array ()) {
+        $this->load_markets();
+        $currency = $this->currency ($code);
+        $response = $this->privatePostWalletWithdrawals (array_merge (array (
+            'currency' => $currency['id'],
+            'amount' => $amount,
+            'address' => $address,
+        ), $params));
+        return array (
+            'id' => $response['result']['withdrawal_id'],
+            'info' => $response,
+        );
+    }
+
+    public function fetch_deposits ($code = null, $since = null, $limit = null, $params = array ()) {
+        $this->load_markets();
+        if ($code === null) {
+            throw new ExchangeError ($this->id . ' fetchDeposits() requires a $currency $code arguemnt');
+        }
+        $currency = $this->currency ($code);
+        $request = array (
+            'currency' => $currency['id'],
+        );
+        $response = $this->privateGetWalletDeposits (array_merge ($request, $params));
+        return $this->parseTransactions ($response['result']['deposits'], $currency);
+    }
+
+    public function fetch_withdrawals ($code = null, $since = null, $limit = null, $params = array ()) {
+        $this->load_markets();
+        if ($code === null) {
+            throw new ExchangeError ($this->id . ' fetchWithdrawals() requires a $currency $code arguemnt');
+        }
+        $currency = $this->currency ($code);
+        $request = array (
+            'currency' => $currency['id'],
+        );
+        $response = $this->privateGetWalletWithdrawals (array_merge ($request, $params));
+        return $this->parseTransactions ($response['result']['withdrawals'], $currency);
+    }
+
+    public function parse_transaction_status ($status) {
+        $statuses = array (
+            'tx_pending_two_factor_auth' => 'pending',
+            'tx_pending_email_auth' => 'pending',
+            'tx_pending_approval' => 'pending',
+            'tx_approved' => 'pending',
+            'tx_processing' => 'pending',
+            'tx_pending' => 'pending',
+            'tx_sent' => 'pending',
+            'tx_cancelled' => 'canceled',
+            'tx_timeout' => 'failed',
+            'tx_invalid' => 'failed',
+            'tx_rejected' => 'failed',
+            'tx_confirmed' => 'ok',
+        );
+        return (is_array ($statuses) && array_key_exists ($status, $statuses)) ? $statuses[$status] : $status;
+    }
+
+    public function parse_transaction ($transaction, $currency = null) {
+        $timestamp = $this->safe_integer($transaction, 'created_at');
+        $code = null;
+        if ($currency === null) {
+            $currencyId = $this->safe_string($transaction, 'currency');
+            if (is_array ($this->currencies_by_id) && array_key_exists ($currencyId, $this->currencies_by_id)) {
+                $currency = $this->currencies_by_id[$currencyId];
+            } else {
+                $code = $this->common_currency_code($currencyId);
+            }
+        }
+        if ($currency !== null) {
+            $code = $currency['code'];
+        }
+        $id = null;
+        $withdrawalId = $this->safe_string($transaction, 'withdrawal_id');
+        $depositId = $this->safe_string($transaction, 'deposit_id');
+        $type = null;
+        $address = null;
+        if ($withdrawalId !== null) {
+            $type = 'withdrawal';
+            $id = $withdrawalId;
+            $address = $this->safe_string($transaction, 'to_address');
+        } else if ($depositId !== null) {
+            $type = 'deposit';
+            $id = $depositId;
+            $address = $this->safe_string($transaction, 'from_address');
+        }
+        $additionalInfo = $this->safe_value($transaction, 'additional_info', array ());
+        $tag = $this->safe_string($additionalInfo, 'memo');
+        return array (
+            'info' => $transaction,
+            'id' => $id,
+            'txid' => $this->safe_string($transaction, 'txhash'),
+            'timestamp' => $timestamp,
+            'datetime' => $this->iso8601 ($timestamp),
+            'address' => $address,
+            'tag' => $tag, // refix it properly
+            'type' => $type,
+            'amount' => $this->safe_float($transaction, 'amount'),
+            'currency' => $code,
+            'status' => $this->parse_transaction_status ($transaction['status']),
+            'updated' => null,
+            'fee' => array (
+                'cost' => $this->safe_float($transaction, 'fee'),
+                'rate' => null,
+            ),
+        );
     }
 
     public function sign ($path, $api = 'public', $method = 'GET', $params = array (), $headers = null, $body = null) {

@@ -116,12 +116,13 @@ class cryptopia (Exchange):
                 'BEAN': 'BITB',  # rebranding, see issue  #3380
                 'BLZ': 'BlazeCoin',
                 'BTG': 'Bitgem',
-                'CAN': 'CanYa',
+                'CAN': 'CanYaCoin',
                 'CAT': 'Catcoin',
                 'CC': 'CCX',
                 'CMT': 'Comet',
                 'EPC': 'ExperienceCoin',
                 'FCN': 'Facilecoin',
+                'FT': 'Fabric Token',
                 'FUEL': 'FC2',  # FuelCoin != FUEL
                 'HAV': 'Havecoin',
                 'KARM': 'KARMA',
@@ -129,6 +130,7 @@ class cryptopia (Exchange):
                 'LDC': 'LADACoin',
                 'MARKS': 'Bitmark',
                 'NET': 'NetCoin',
+                'PLC': 'Polcoin',
                 'RED': 'RedCoin',
                 'STC': 'StopTrumpCoin',
                 'QBT': 'Cubits',
@@ -146,7 +148,7 @@ class cryptopia (Exchange):
         for i in range(0, len(markets)):
             market = markets[i]
             numericId = market['Id']
-            # symbol = market['Label']
+            label = market['Label']
             baseId = market['Symbol']
             quoteId = market['BaseSymbol']
             base = self.common_currency_code(baseId)
@@ -186,10 +188,10 @@ class cryptopia (Exchange):
                 'info': market,
                 'maker': market['TradeFee'] / 100,
                 'taker': market['TradeFee'] / 100,
-                'lot': limits['amount']['min'],
                 'active': active,
                 'precision': precision,
                 'limits': limits,
+                'label': label,
             })
         self.options['marketsByLabel'] = self.index_by(result, 'label')
         return result
@@ -543,12 +545,7 @@ class cryptopia (Exchange):
                 if id in self.options['marketsByLabel']:
                     market = self.options['marketsByLabel'][id]
                     symbol = market['symbol']
-        timestamp = self.safe_string(order, 'TimeStamp')
-        if timestamp is not None:
-            timestamp = self.parse8601(order['TimeStamp'])
-        datetime = None
-        if timestamp:
-            datetime = self.iso8601(timestamp)
+        timestamp = self.parse8601(self.safe_string(order, 'TimeStamp'))
         amount = self.safe_float(order, 'Amount')
         remaining = self.safe_float(order, 'Remaining')
         filled = None
@@ -564,7 +561,7 @@ class cryptopia (Exchange):
             'id': id,
             'info': self.omit(order, 'status'),
             'timestamp': timestamp,
-            'datetime': datetime,
+            'datetime': self.iso8601(timestamp),
             'lastTradeTimestamp': None,
             'status': self.safe_string(order, 'status'),
             'symbol': symbol,
@@ -721,6 +718,8 @@ class cryptopia (Exchange):
                             feedback = feedback + ' ' + error
                             if error.find('Invalid trade amount') >= 0:
                                 raise InvalidOrder(feedback)
+                            if error.find('No matching trades found') >= 0:
+                                raise OrderNotFound(feedback)
                             if error.find('does not exist') >= 0:
                                 raise OrderNotFound(feedback)
                             if error.find('Insufficient Funds') >= 0:

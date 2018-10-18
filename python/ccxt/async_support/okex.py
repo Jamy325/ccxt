@@ -27,16 +27,16 @@ class okex (okcoinusd):
                 },
                 'www': 'https://www.okex.com',
                 'doc': 'https://github.com/okcoin-okex/API-docs-OKEx.com',
-                'fees': 'https://www.okex.com/fees.html',
+                'fees': 'https://www.okex.com/pages/products/fees.html',
             },
             'commonCurrencies': {
-                'CAN': 'Content And AD Network',
                 'FAIR': 'FairGame',
+                'HOT': 'Hydro Protocol',
                 'MAG': 'Maggie',
                 'YOYO': 'YOYOW',
             },
             'options': {
-                'fetchTickersMethod': 'fetchTickersFromApi',
+                'fetchTickersMethod': 'fetch_tickers_from_api',
             },
         })
 
@@ -79,12 +79,7 @@ class okex (okcoinusd):
         result = {}
         for i in range(0, len(tickers)):
             ticker = tickers[i]
-            market = None
-            if 'symbol' in ticker:
-                marketId = ticker['symbol']
-                if marketId in self.markets_by_id:
-                    market = self.markets_by_id[marketId]
-            ticker = self.parse_ticker(self.extend(tickers[i], {'timestamp': timestamp}), market)
+            ticker = self.parse_ticker(self.extend(tickers[i], {'timestamp': timestamp}))
             symbol = ticker['symbol']
             result[symbol] = ticker
         return result
@@ -101,7 +96,7 @@ class okex (okcoinusd):
             result[symbol] = ticker
         return result
 
-    async def fetch_tickers(self, symbol=None, params={}):
+    async def fetch_tickers(self, symbols=None, params={}):
         method = self.options['fetchTickersMethod']
-        response = await getattr(self, method)(symbol, params)
+        response = await getattr(self, method)(symbols, params)
         return response

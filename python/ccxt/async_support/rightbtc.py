@@ -15,6 +15,7 @@ import math
 import json
 from ccxt.base.errors import ExchangeError
 from ccxt.base.errors import AuthenticationError
+from ccxt.base.errors import ArgumentsRequired
 from ccxt.base.errors import InsufficientFunds
 from ccxt.base.errors import InvalidOrder
 from ccxt.base.errors import OrderNotFound
@@ -51,8 +52,8 @@ class rightbtc (Exchange):
                 'api': 'https://www.rightbtc.com/api',
                 'www': 'https://www.rightbtc.com',
                 'doc': [
-                    'https://www.rightbtc.com/api/trader',
-                    'https://www.rightbtc.com/api/public',
+                    'https://52.53.159.206/api/trader/',
+                    'https://support.rightbtc.com/hc/en-us/articles/360012809412',
                 ],
                 # eslint-disable-next-line no-useless-escape
                 # 'fees': 'https://www.rightbtc.com/\#\not /support/fee',
@@ -60,7 +61,7 @@ class rightbtc (Exchange):
             'api': {
                 'public': {
                     'get': [
-                        'getAssetsTradingPairs/zh',
+                        # 'getAssetsTradingPairs/zh',  # 404
                         'trading_pairs',
                         'ticker/{trading_pair}',
                         'tickers',
@@ -136,19 +137,23 @@ class rightbtc (Exchange):
                     },
                 },
             },
+            'commonCurrencies': {
+                'XRB': 'NANO',
+            },
             'exceptions': {
                 'ERR_USERTOKEN_NOT_FOUND': AuthenticationError,
                 'ERR_ASSET_NOT_EXISTS': ExchangeError,
                 'ERR_ASSET_NOT_AVAILABLE': ExchangeError,
                 'ERR_BALANCE_NOT_ENOUGH': InsufficientFunds,
                 'ERR_CREATE_ORDER': InvalidOrder,
+                'ERR_CANDLESTICK_DATA': ExchangeError,
             },
         })
 
     async def fetch_markets(self):
         response = await self.publicGetTradingPairs()
-        zh = await self.publicGetGetAssetsTradingPairsZh()
-        markets = self.extend(zh['result'], response['status']['message'])
+        # zh = await self.publicGetGetAssetsTradingPairsZh()
+        markets = self.extend(response['status']['message'])
         marketIds = list(markets.keys())
         result = []
         for i in range(0, len(marketIds)):
@@ -251,11 +256,16 @@ class rightbtc (Exchange):
             result[symbol] = self.parse_ticker(ticker, market)
         return result
 
-    async def fetch_order_book(self, symbol, params={}):
+    async def fetch_order_book(self, symbol, limit=None, params={}):
         await self.load_markets()
-        response = await self.publicGetDepthTradingPair(self.extend({
+        request = {
             'trading_pair': self.market_id(symbol),
-        }, params))
+        }
+        method = 'publicGetDepthTradingPair'
+        if limit is not None:
+            method += 'Count'
+            request['count'] = limit
+        response = await getattr(self, method)(self.extend(request, params))
         bidsasks = {}
         types = ['bid', 'ask']
         for ti in range(0, len(types)):
@@ -284,8 +294,7 @@ class rightbtc (Exchange):
         #
         timestamp = self.safe_integer(trade, 'date')
         if timestamp is None:
-            if 'created_at' in trade:
-                timestamp = self.parse8601(trade['created_at'])
+            timestamp = self.parse8601(self.safe_string(trade, 'created_at'))
         id = self.safe_string(trade, 'tid')
         id = self.safe_string(trade, 'trade_id', id)
         orderId = self.safe_string(trade, 'order_id')
@@ -384,12 +393,18 @@ class rightbtc (Exchange):
             code = self.common_currency_code(currencyId)
             if currencyId in self.currencies_by_id:
                 code = self.currencies_by_id[currencyId]['code']
-            total = self.divide_safe_float(balance, 'balance', 1e8)
+            free = self.divide_safe_float(balance, 'balance', 1e8)
             used = self.divide_safe_float(balance, 'frozen', 1e8)
-            free = None
-            if total is not None:
-                if used is not None:
-                    free = total - used
+            total = self.sum(free, used)
+            #
+            # https://github.com/ccxt/ccxt/issues/3873
+            #
+            #     if total is not None:
+            #         if used is not None:
+            #             free = total - used
+            #         }
+            #     }
+            #
             account = {
                 'free': free,
                 'used': used,
@@ -413,7 +428,7 @@ class rightbtc (Exchange):
 
     async def cancel_order(self, id, symbol=None, params={}):
         if symbol is None:
-            raise ExchangeError(self.id + ' cancelOrder requires a symbol argument')
+            raise ArgumentsRequired(self.id + ' cancelOrder requires a symbol argument')
         await self.load_markets()
         market = self.market(symbol)
         response = await self.traderDeleteOrderTradingPairIds(self.extend({
@@ -462,9 +477,7 @@ class rightbtc (Exchange):
         #     }
         #
         id = self.safe_string(order, 'id')
-        status = self.safe_value(order, 'status')
-        if status is not None:
-            status = self.parse_order_status(status)
+        status = self.parse_order_status(self.safe_string(order, 'status'))
         marketId = self.safe_string(order, 'trading_pair')
         if market is None:
             if marketId in self.markets_by_id:
@@ -474,7 +487,7 @@ class rightbtc (Exchange):
             symbol = market['symbol']
         timestamp = self.safe_integer(order, 'created')
         if timestamp is None:
-            timestamp = self.parse8601(order['created_at'])
+            timestamp = self.parse8601(self.safe_string(order, 'created_at'))
         if 'time' in order:
             timestamp = order['time']
         elif 'transactTime' in order:
@@ -533,7 +546,7 @@ class rightbtc (Exchange):
 
     async def fetch_order(self, id, symbol=None, params={}):
         if symbol is None:
-            raise ExchangeError(self.id + ' fetchOrder requires a symbol argument')
+            raise ArgumentsRequired(self.id + ' fetchOrder requires a symbol argument')
         await self.load_markets()
         market = self.market(symbol)
         request = {
@@ -568,7 +581,7 @@ class rightbtc (Exchange):
 
     async def fetch_open_orders(self, symbol=None, since=None, limit=None, params={}):
         if symbol is None:
-            raise ExchangeError(self.id + ' fetchOpenOrders requires a symbol argument')
+            raise ArgumentsRequired(self.id + ' fetchOpenOrders requires a symbol argument')
         await self.load_markets()
         market = self.market(symbol)
         request = {
@@ -639,7 +652,7 @@ class rightbtc (Exchange):
 
     async def fetch_my_trades(self, symbol=None, since=None, limit=None, params={}):
         if symbol is None:
-            raise ExchangeError(self.id + ' fetchMyTrades requires a symbol argument')
+            raise ArgumentsRequired(self.id + ' fetchMyTrades requires a symbol argument')
         await self.load_markets()
         market = self.market(symbol)
         response = await self.traderGetHistorysTradingPairPage(self.extend({
@@ -703,13 +716,14 @@ class rightbtc (Exchange):
             return  # fallback to default error handler
         if (body[0] == '{') or (body[0] == '['):
             response = json.loads(body)
-            if 'success' in response:
+            status = self.safe_value(response, 'status')
+            if status is not None:
                 #
                 #     {"status":{"success":0,"message":"ERR_USERTOKEN_NOT_FOUND"}}
                 #
-                success = self.safe_string(response, 'success')
+                success = self.safe_string(status, 'success')
                 if success != '1':
-                    message = self.safe_string(response, 'message')
+                    message = self.safe_string(status, 'message')
                     feedback = self.id + ' ' + self.json(response)
                     exceptions = self.exceptions
                     if message in exceptions:

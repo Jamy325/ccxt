@@ -100,12 +100,13 @@ class cryptopia extends Exchange {
                 'BEAN' => 'BITB', // rebranding, see issue #3380
                 'BLZ' => 'BlazeCoin',
                 'BTG' => 'Bitgem',
-                'CAN' => 'CanYa',
+                'CAN' => 'CanYaCoin',
                 'CAT' => 'Catcoin',
                 'CC' => 'CCX',
                 'CMT' => 'Comet',
                 'EPC' => 'ExperienceCoin',
                 'FCN' => 'Facilecoin',
+                'FT' => 'Fabric Token',
                 'FUEL' => 'FC2', // FuelCoin != FUEL
                 'HAV' => 'Havecoin',
                 'KARM' => 'KARMA',
@@ -113,6 +114,7 @@ class cryptopia extends Exchange {
                 'LDC' => 'LADACoin',
                 'MARKS' => 'Bitmark',
                 'NET' => 'NetCoin',
+                'PLC' => 'Polcoin',
                 'RED' => 'RedCoin',
                 'STC' => 'StopTrumpCoin',
                 'QBT' => 'Cubits',
@@ -131,7 +133,7 @@ class cryptopia extends Exchange {
         for ($i = 0; $i < count ($markets); $i++) {
             $market = $markets[$i];
             $numericId = $market['Id'];
-            // $symbol = $market['Label'];
+            $label = $market['Label'];
             $baseId = $market['Symbol'];
             $quoteId = $market['BaseSymbol'];
             $base = $this->common_currency_code($baseId);
@@ -171,10 +173,10 @@ class cryptopia extends Exchange {
                 'info' => $market,
                 'maker' => $market['TradeFee'] / 100,
                 'taker' => $market['TradeFee'] / 100,
-                'lot' => $limits['amount']['min'],
                 'active' => $active,
                 'precision' => $precision,
                 'limits' => $limits,
+                'label' => $label,
             );
         }
         $this->options['marketsByLabel'] = $this->index_by($result, 'label');
@@ -574,14 +576,7 @@ class cryptopia extends Exchange {
                 }
             }
         }
-        $timestamp = $this->safe_string($order, 'TimeStamp');
-        if ($timestamp !== null) {
-            $timestamp = $this->parse8601 ($order['TimeStamp']);
-        }
-        $datetime = null;
-        if ($timestamp) {
-            $datetime = $this->iso8601 ($timestamp);
-        }
+        $timestamp = $this->parse8601 ($this->safe_string($order, 'TimeStamp'));
         $amount = $this->safe_float($order, 'Amount');
         $remaining = $this->safe_float($order, 'Remaining');
         $filled = null;
@@ -600,7 +595,7 @@ class cryptopia extends Exchange {
             'id' => $id,
             'info' => $this->omit ($order, 'status'),
             'timestamp' => $timestamp,
-            'datetime' => $datetime,
+            'datetime' => $this->iso8601 ($timestamp),
             'lastTradeTimestamp' => null,
             'status' => $this->safe_string($order, 'status'),
             'symbol' => $symbol,
@@ -777,6 +772,9 @@ class cryptopia extends Exchange {
                             $feedback = $feedback . ' ' . $error;
                             if (mb_strpos ($error, 'Invalid trade amount') !== false) {
                                 throw new InvalidOrder ($feedback);
+                            }
+                            if (mb_strpos ($error, 'No matching trades found') !== false) {
+                                throw new OrderNotFound ($feedback);
                             }
                             if (mb_strpos ($error, 'does not exist') !== false) {
                                 throw new OrderNotFound ($feedback);

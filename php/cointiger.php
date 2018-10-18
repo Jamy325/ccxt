@@ -14,15 +14,17 @@ class cointiger extends huobipro {
             'id' => 'cointiger',
             'name' => 'CoinTiger',
             'countries' => array ( 'CN' ),
-            'hostname' => 'api.cointiger.pro',
+            'hostname' => 'cointiger.pro',
             'has' => array (
                 'fetchCurrencies' => false,
                 'fetchTickers' => true,
                 'fetchTradingLimits' => false,
                 'fetchOrder' => true,
+                'fetchOrders' => true,
                 'fetchOpenOrders' => true,
                 'fetchClosedOrders' => true,
                 'fetchOrderTrades' => false, // not tested yet
+                'cancelOrders' => true,
             ),
             'headers' => array (
                 'Language' => 'en_US',
@@ -30,11 +32,11 @@ class cointiger extends huobipro {
             'urls' => array (
                 'logo' => 'https://user-images.githubusercontent.com/1294454/39797261-d58df196-5363-11e8-9880-2ec78ec5bd25.jpg',
                 'api' => array (
-                    'public' => 'https://api.cointiger.pro/exchange/trading/api/market',
-                    'private' => 'https://api.cointiger.pro/exchange/trading/api',
-                    'exchange' => 'https://www.cointiger.pro/exchange',
-                    'v2public' => 'https://api.cointiger.pro/exchange/trading/api/v2',
-                    'v2' => 'https://api.cointiger.pro/exchange/trading/api/v2',
+                    'public' => 'https://api.{hostname}/exchange/trading/api/market',
+                    'private' => 'https://api.{hostname}/exchange/trading/api',
+                    'exchange' => 'https://www.{hostname}/exchange',
+                    'v2public' => 'https://api.{hostname}/exchange/trading/api/v2',
+                    'v2' => 'https://api.{hostname}/exchange/trading/api/v2',
                 ),
                 'www' => 'https://www.cointiger.pro',
                 'referral' => 'https://www.cointiger.pro/exchange/register.html?refCode=FfvDtt',
@@ -56,7 +58,7 @@ class cointiger extends huobipro {
                     ),
                     'post' => array (
                         'order',
-                        'order/batchcancel',
+                        'order/batch_cancel',
                     ),
                 ),
                 'public' => array (
@@ -94,15 +96,15 @@ class cointiger extends huobipro {
                 'trading' => array (
                     'tierBased' => false,
                     'percentage' => true,
-                    'maker' => 0.001,
-                    'taker' => 0.001,
+                    'maker' => 0.0008,
+                    'taker' => 0.0015,
                 ),
             ),
             'exceptions' => array (
                 //    array ("code":"1","msg":"系统错误","data":null)
-                //    array (“code”:“1",“msg”:“Balance insufficient,余额不足“,”data”:null)
+                //    array ("code":"1","msg":"Balance insufficient,余额不足","data":null)
                 '1' => '\\ccxt\\ExchangeError',
-                '2' => '\\ccxt\\ExchangeError',
+                '2' => '\\ccxt\\BadRequest', // array ("code":"2","msg":"Parameter error","data":null)
                 '5' => '\\ccxt\\InvalidOrder',
                 '6' => '\\ccxt\\InvalidOrder',
                 '8' => '\\ccxt\\OrderNotFound',
@@ -111,6 +113,10 @@ class cointiger extends huobipro {
                 '100002' => '\\ccxt\\ExchangeNotAvailable',
                 '100003' => '\\ccxt\\ExchangeError',
                 '100005' => '\\ccxt\\AuthenticationError',
+            ),
+            'commonCurrencies' => array (
+                'FGC' => 'FoundGameCoin',
+                'TCT' => 'The Tycoon Chain Token',
             ),
         ));
     }
@@ -332,26 +338,27 @@ class cointiger extends huobipro {
             $amount = $this->safe_float_2($trade, 'amount', 'volume');
         }
         $fee = null;
-        if ($side !== null) {
-            $feeCostField = $side . '_fee';
-            $feeCost = $this->safe_float($trade, $feeCostField);
-            if ($feeCost !== null) {
-                $feeCurrency = null;
-                if ($market !== null) {
+        $feeCost = $this->safe_float($trade, 'fee');
+        if ($feeCost !== null) {
+            $feeCurrency = null;
+            if ($market !== null) {
+                if ($side === 'buy') {
                     $feeCurrency = $market['base'];
+                } else if ($side === 'sell') {
+                    $feeCurrency = $market['quote'];
                 }
-                $fee = array (
-                    'cost' => $feeCost,
-                    'currency' => $feeCurrency,
-                );
             }
+            $fee = array (
+                'cost' => $feeCost,
+                'currency' => $feeCurrency,
+            );
         }
         if ($amount !== null)
             if ($price !== null)
                 if ($cost === null)
                     $cost = $amount * $price;
         $timestamp = $this->safe_integer_2($trade, 'created_at', 'ts');
-        $timestamp = $this->safe_integer($trade, 'created', $timestamp);
+        $timestamp = $this->safe_integer_2($trade, 'created', 'mtime', $timestamp);
         $symbol = null;
         if ($market !== null)
             $symbol = $market['symbol'];
@@ -385,7 +392,7 @@ class cointiger extends huobipro {
 
     public function fetch_my_trades ($symbol = null, $since = null, $limit = null, $params = array ()) {
         if ($symbol === null)
-            throw new ExchangeError ($this->id . ' fetchOrders requires a $symbol argument');
+            throw new ArgumentsRequired ($this->id . ' fetchMyTrades requires a $symbol argument');
         $this->load_markets();
         $market = $this->market ($symbol);
         if ($limit === null)
@@ -451,7 +458,7 @@ class cointiger extends huobipro {
 
     public function fetch_order_trades ($id, $symbol = null, $since = null, $limit = null, $params = array ()) {
         if ($symbol === null) {
-            throw new ExchangeError ($this->id . ' fetchOrderTrades requires a $symbol argument');
+            throw new ArgumentsRequired ($this->id . ' fetchOrderTrades requires a $symbol argument');
         }
         $this->load_markets();
         $market = $this->market ($symbol);
@@ -479,9 +486,9 @@ class cointiger extends huobipro {
         return $this->parse_trades($response['data'], $market, $since, $limit);
     }
 
-    public function fetch_orders_by_status ($status = null, $symbol = null, $since = null, $limit = null, $params = array ()) {
+    public function fetch_orders_by_status_v1 ($status = null, $symbol = null, $since = null, $limit = null, $params = array ()) {
         if ($symbol === null)
-            throw new ExchangeError ($this->id . ' fetchOrders requires a $symbol argument');
+            throw new ArgumentsRequired ($this->id . ' fetchOrders requires a $symbol argument');
         $this->load_markets();
         $market = $this->market ($symbol);
         if ($limit === null)
@@ -498,17 +505,47 @@ class cointiger extends huobipro {
             $order = array_merge ($orders[$i], array (
                 'status' => $status,
             ));
-            $result[] = $this->parse_order($order, $market, $since, $limit);
+            $result[] = $this->parse_order($order, $market);
         }
         return $result;
     }
 
+    public function fetch_open_orders_v1 ($symbol = null, $since = null, $limit = null, $params = array ()) {
+        return $this->fetch_orders_by_status_v1 ('open', $symbol, $since, $limit, $params);
+    }
+
+    public function fetch_orders_v1 ($symbol = null, $since = null, $limit = null, $params = array ()) {
+        return $this->fetch_orders_by_status_v1 (null, $symbol, $since, $limit, $params);
+    }
+
+    public function fetch_orders_by_states_v2 ($states, $symbol = null, $since = null, $limit = null, $params = array ()) {
+        if ($symbol === null)
+            throw new ArgumentsRequired ($this->id . ' fetchOrders requires a $symbol argument');
+        $this->load_markets();
+        $market = $this->market ($symbol);
+        if ($limit === null)
+            $limit = 50;
+        $response = $this->v2GetOrderOrders (array_merge (array (
+            'symbol' => $market['id'],
+            // 'types' => 'buy-$market,sell-$market,buy-$limit,sell-limit',
+            'states' => $states, // 'new,part_filled,filled,canceled,expired'
+            // 'from' => '0', // id
+            'direct' => 'next', // or 'prev'
+            'size' => $limit,
+        ), $params));
+        return $this->parse_orders($response['data'], $market, $since, $limit);
+    }
+
+    public function fetch_orders ($symbol = null, $since = null, $limit = null, $params = array ()) {
+        return $this->fetch_orders_by_states_v2 ('new,part_filled,filled,canceled,expired', $symbol, $since, $limit, $params);
+    }
+
     public function fetch_open_orders ($symbol = null, $since = null, $limit = null, $params = array ()) {
-        return $this->fetch_orders_by_status ('open', $symbol, $since, $limit, $params);
+        return $this->fetch_orders_by_states_v2 ('new,part_filled', $symbol, $since, $limit, $params);
     }
 
     public function fetch_closed_orders ($symbol = null, $since = null, $limit = null, $params = array ()) {
-        return $this->fetch_orders_by_status ('closed', $symbol, $since, $limit, $params);
+        return $this->fetch_orders_by_states_v2 ('filled,canceled', $symbol, $since, $limit, $params);
     }
 
     public function fetch_order ($id, $symbol = null, $params = array ()) {
@@ -531,7 +568,7 @@ class cointiger extends huobipro {
         //                    status =>  2              } }
         //
         if ($symbol === null) {
-            throw new ExchangeError ($this->id . ' fetchOrder requires a $symbol argument');
+            throw new ArgumentsRequired ($this->id . ' fetchOrder requires a $symbol argument');
         }
         $this->load_markets();
         $market = $this->market ($symbol);
@@ -597,9 +634,8 @@ class cointiger extends huobipro {
         $side = $this->safe_string($order, 'side');
         $type = null;
         $orderType = $this->safe_string($order, 'type');
-        $status = $this->safe_string($order, 'status');
-        $timestamp = $this->safe_integer($order, 'created_at');
-        $timestamp = $this->safe_integer($order, 'ctime', $timestamp);
+        $status = $this->parse_order_status($this->safe_string($order, 'status'));
+        $timestamp = $this->safe_integer_2($order, 'created_at', 'ctime');
         $lastTradeTimestamp = $this->safe_integer_2($order, 'mtime', 'finished-at');
         $symbol = null;
         if ($market === null) {
@@ -651,7 +687,6 @@ class cointiger extends huobipro {
                     );
                 }
             }
-            $status = $this->parse_order_status($status);
         }
         if ($amount !== null) {
             if ($remaining !== null) {
@@ -664,8 +699,11 @@ class cointiger extends huobipro {
             }
         }
         if ($status === null) {
-            if (($remaining !== null) && ($remaining > 0))
-                $status = 'open';
+            if ($remaining !== null) {
+                if ($remaining === 0) {
+                    $status = 'closed';
+                }
+            }
         }
         $result = array (
             'info' => $order,
@@ -689,26 +727,11 @@ class cointiger extends huobipro {
         return $result;
     }
 
-    public function cost_to_precision ($symbol, $cost) {
-        return $this->decimal_to_precision($cost, ROUND, $this->markets[$symbol]['precision']['price']);
-    }
-
-    public function price_to_precision ($symbol, $price) {
-        return $this->decimal_to_precision($price, ROUND, $this->markets[$symbol]['precision']['price']);
-    }
-
-    public function amount_to_precision ($symbol, $amount) {
-        return $this->decimal_to_precision($amount, TRUNCATE, $this->markets[$symbol]['precision']['amount']);
-    }
-
-    public function fee_to_precision ($currency, $fee) {
-        return $this->decimal_to_precision($fee, ROUND, $this->currencies[$currency]['precision']);
-    }
-
     public function create_order ($symbol, $type, $side, $amount, $price = null, $params = array ()) {
         $this->load_markets();
-        if (!$this->password)
+        if (!$this->password) {
             throw new AuthenticationError ($this->id . ' createOrder requires exchange.password to be set to user trading password (not login password!)');
+        }
         $this->check_required_credentials();
         $market = $this->market ($symbol);
         $orderType = ($type === 'limit') ? 1 : 2;
@@ -723,7 +746,7 @@ class cointiger extends huobipro {
             if ($price === null) {
                 throw new InvalidOrder ($this->id . ' createOrder requires $price argument for $market buy orders to calculate total cost according to exchange rules');
             }
-            $order['volume'] = $this->amount_to_precision($symbol, $amount * $price);
+            $order['volume'] = $this->amount_to_precision($symbol, floatval ($amount) * floatval ($price));
         }
         if ($type === 'limit') {
             $order['price'] = $this->price_to_precision($symbol, $price);
@@ -762,7 +785,7 @@ class cointiger extends huobipro {
     public function cancel_order ($id, $symbol = null, $params = array ()) {
         $this->load_markets();
         if ($symbol === null)
-            throw new ExchangeError ($this->id . ' cancelOrder requires a $symbol argument');
+            throw new ArgumentsRequired ($this->id . ' cancelOrder requires a $symbol argument');
         $market = $this->market ($symbol);
         $response = $this->privateDeleteOrder (array_merge (array (
             'symbol' => $market['id'],
@@ -775,9 +798,29 @@ class cointiger extends huobipro {
         );
     }
 
+    public function cancel_orders ($ids, $symbol = null, $params = array ()) {
+        $this->load_markets();
+        if ($symbol === null)
+            throw new ArgumentsRequired ($this->id . ' cancelOrders requires a $symbol argument');
+        $market = $this->market ($symbol);
+        $marketId = $market['id'];
+        $orderIdList = array ();
+        $orderIdList[$marketId] = $ids;
+        $request = array (
+            'orderIdList' => $this->json ($orderIdList),
+        );
+        $response = $this->v2PostOrderBatchCancel (array_merge ($request, $params));
+        return array (
+            'info' => $response,
+        );
+    }
+
     public function sign ($path, $api = 'public', $method = 'GET', $params = array (), $headers = null, $body = null) {
         $this->check_required_credentials();
-        $url = $this->urls['api'][$api] . '/' . $this->implode_params($path, $params);
+        $url = $this->implode_params($this->urls['api'][$api], array (
+            'hostname' => $this->hostname,
+        ));
+        $url .= '/' . $this->implode_params($path, $params);
         if ($api === 'private' || $api === 'v2') {
             $timestamp = (string) $this->milliseconds ();
             $query = $this->keysort (array_merge (array (
@@ -790,8 +833,7 @@ class cointiger extends huobipro {
             }
             $auth .= $this->secret;
             $signature = $this->hmac ($this->encode ($auth), $this->encode ($this->secret), 'sha512');
-            $isCreateOrderMethod = ($path === 'order') && ($method === 'POST');
-            $urlParams = $isCreateOrderMethod ? array () : $query;
+            $urlParams = ($method === 'POST') ? array () : $query;
             $url .= '?' . $this->urlencode ($this->keysort (array_merge (array (
                 'api_key' => $this->apiKey,
                 'time' => $timestamp,
@@ -826,27 +868,54 @@ class cointiger extends huobipro {
                 //     array ( "$code" => "100005", "msg" => "request sign illegal", "data" => null )
                 //
                 $code = $this->safe_string($response, 'code');
-                if (($code !== null) && ($code !== '0')) {
+                if ($code !== null) {
                     $message = $this->safe_string($response, 'msg');
                     $feedback = $this->id . ' ' . $this->json ($response);
-                    $exceptions = $this->exceptions;
-                    if (is_array ($exceptions) && array_key_exists ($code, $exceptions)) {
-                        if ($code === 1) {
-                            //    array ("$code":"1","msg":"系统错误","data":null)
-                            //    array (“$code”:“1",“msg”:“Balance insufficient,余额不足“,”data”:null)
-                            if (mb_strpos ($message, 'Balance insufficient') !== false) {
-                                throw new InsufficientFunds ($feedback);
+                    if ($code !== '0') {
+                        $exceptions = $this->exceptions;
+                        if (is_array ($exceptions) && array_key_exists ($code, $exceptions)) {
+                            if ($code === '1') {
+                                //
+                                //    array ("$code":"1","msg":"系统错误","data":null)
+                                //    array (“$code”:“1",“msg”:“Balance insufficient,余额不足“,”data”:null)
+                                //
+                                if (mb_strpos ($message, 'Balance insufficient') !== false) {
+                                    throw new InsufficientFunds ($feedback);
+                                }
+                            } else if ($code === '2') {
+                                if ($message === 'offsetNot Null') {
+                                    throw new ExchangeError ($feedback);
+                                } else if ($message === 'api_keyNot EXIST') {
+                                    throw new AuthenticationError ($feedback);
+                                } else if ($message === 'price precision exceed the limit') {
+                                    throw new InvalidOrder ($feedback);
+                                } else if ($message === 'Parameter error') {
+                                    throw new BadRequest ($feedback);
+                                }
                             }
-                        } else if ($code === 2) {
-                            if ($message === 'offsetNot Null') {
-                                throw new ExchangeError ($feedback);
-                            } else if ($message === 'Parameter error') {
-                                throw new ExchangeError ($feedback);
-                            }
+                            throw new $exceptions[$code] ($feedback);
+                        } else {
+                            throw new ExchangeError ($this->id . ' unknown "error" value => ' . $this->json ($response));
                         }
-                        throw new $exceptions[$code] ($feedback);
                     } else {
-                        throw new ExchangeError ($this->id . ' unknown "error" value => ' . $this->json ($response));
+                        //
+                        // Google Translate:
+                        // 订单状态不能取消,订单取消失败 = Order status cannot be canceled
+                        // 根据订单号没有查询到订单,订单取消失败 = The order was not queried according to the order number
+                        //
+                        // array ("$code":"0","msg":"suc","data":{"success":array (),"failed":[array ("err-msg":"订单状态不能取消,订单取消失败","order-id":32857051,"err-$code":"8")])}
+                        // array ("$code":"0","msg":"suc","data":{"success":array (),"failed":[array ("err-msg":"Parameter error","order-id":32857050,"err-$code":"2"),array ("err-msg":"订单状态不能取消,订单取消失败","order-id":32857050,"err-$code":"8")])}
+                        // array ("$code":"0","msg":"suc","data":{"success":array (),"failed":[array ("err-msg":"Parameter error","order-id":98549677,"err-$code":"2"),array ("err-msg":"根据订单号没有查询到订单,订单取消失败","order-id":98549677,"err-$code":"8")])}
+                        //
+                        if (mb_strpos ($feedback, '订单状态不能取消,订单取消失败') !== false) {
+                            if (mb_strpos ($feedback, 'Parameter error') !== false) {
+                                throw new OrderNotFound ($feedback);
+                            } else {
+                                throw new InvalidOrder ($feedback);
+                            }
+                        } else if (mb_strpos ($feedback, '根据订单号没有查询到订单,订单取消失败') !== false) {
+                            throw new OrderNotFound ($feedback);
+                        }
                     }
                 }
             }

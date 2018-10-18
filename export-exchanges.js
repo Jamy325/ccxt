@@ -17,6 +17,7 @@ let verbose = false
 
 let wikiPath = 'wiki'
 let gitWikiPath = 'ccxt.wiki'
+let ccxtCertifiedBadge = '[![CCXT Certified](https://img.shields.io/badge/CCXT-certified-green.svg)](https://github.com/ccxt/ccxt/wiki/Certification)'
 
 if (!fs.existsSync (gitWikiPath)) {
 
@@ -115,6 +116,7 @@ const ccxt = require ('./ccxt.js')
 // ----------------------------------------------------------------------------
 
 for (let id in exchanges) {
+    ccxt[id].prototype.checkRequiredDependencies = () => {}
     exchanges[id] = new (ccxt)[id] (exchanges[id])
     exchanges[id].verbose = verbose
 }
@@ -122,7 +124,7 @@ for (let id in exchanges) {
 // console.log (Object.values (ccxt).length)
 
 var countryName = function (code) {
-    return ((typeof countries[code] !== 'undefined') ? countries[code] : code)
+    return ((countries[code] !== undefined) ? countries[code] : code)
 }
 
 let sleep = async ms => await new Promise (resolve => setTimeout (resolve, ms))
@@ -144,6 +146,7 @@ let values = Object.values (exchanges).map (exchange => {
         '': '![' + exchange.id + '](' + logo + ')',
         'id': exchange.id,
         'name': '[' + exchange.name + '](' + url + ')',
+        'certified': exchange.certified ? ccxtCertifiedBadge : '',
         'ver': version,
         'doc': '[API](' + doc + ')',
         'countries': countries,
@@ -169,7 +172,7 @@ let changeInFile = (filename, prefix = '') => {
     let oldContent = fs.readFileSync (filename, 'utf8')
     let beginning = prefix + "The ccxt library currently supports the following "
     let ending = " cryptocurrency exchange markets and trading APIs:\n\n"
-    let regex = new RegExp ("[^\n]+[\n][\n]\\|[^#]+\\|([\n][\n]|[\n]$|$)", 'm')
+    let regex = new RegExp ("[^\n]+[\n]{2}\\|[^#]+\\|([\n][\n]|[\n]$|$)", 'm')
     let totalString = beginning + numExchanges + ending
     let replacement = totalString + lines + "$1"
     let newContent = oldContent.replace(/[\r]/, '').replace (regex, replacement)
@@ -212,6 +215,7 @@ Object.keys (countries).forEach (code => {
                 'logo': ' ![' + exchange.id + '](' + logo + ') ',
                 'id': exchange.id,
                 'name': '[' + exchange.name + '](' + url + ')',
+                'certified': exchange.certified ? ccxtCertifiedBadge : '',
                 'ver': version,
                 'doc': ' [API](' + doc + ') ',
             })

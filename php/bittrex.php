@@ -16,6 +16,7 @@ class bittrex extends Exchange {
             'countries' => array ( 'US' ),
             'version' => 'v1.1',
             'rateLimit' => 1500,
+            'certified' => true,
             // new metainfo interface
             'has' => array (
                 'CORS' => true,
@@ -168,11 +169,11 @@ class bittrex extends Exchange {
     }
 
     public function cost_to_precision ($symbol, $cost) {
-        return $this->truncate (floatval ($cost), $this->markets[$symbol]['precision']['price']);
+        return $this->decimal_to_precision($cost, TRUNCATE, $this->markets[$symbol]['precision']['price'], DECIMAL_PLACES);
     }
 
     public function fee_to_precision ($symbol, $fee) {
-        return $this->truncate (floatval ($fee), $this->markets[$symbol]['precision']['price']);
+        return $this->decimal_to_precision($fee, TRUNCATE, $this->markets[$symbol]['precision']['price'], DECIMAL_PLACES);
     }
 
     public function fetch_markets () {
@@ -267,11 +268,9 @@ class bittrex extends Exchange {
 
     public function parse_ticker ($ticker, $market = null) {
         $timestamp = $this->safe_string($ticker, 'TimeStamp');
-        $iso8601 = null;
         if (gettype ($timestamp) === 'string') {
             if (strlen ($timestamp) > 0) {
                 $timestamp = $this->parse8601 ($timestamp);
-                $iso8601 = $this->iso8601 ($timestamp);
             }
         }
         $symbol = null;
@@ -290,7 +289,7 @@ class bittrex extends Exchange {
         return array (
             'symbol' => $symbol,
             'timestamp' => $timestamp,
-            'datetime' => $iso8601,
+            'datetime' => $this->iso8601 ($timestamp),
             'high' => $this->safe_float($ticker, 'High'),
             'low' => $this->safe_float($ticker, 'Low'),
             'bid' => $this->safe_float($ticker, 'Bid'),
@@ -449,7 +448,6 @@ class bittrex extends Exchange {
             if ($response['result'])
                 return $this->parse_ohlcvs($response['result'], $market, $timeframe, $since, $limit);
         }
-        throw new ExchangeError ($this->id . ' returned an empty or unrecognized $response => ' . $this->json ($response));
     }
 
     public function fetch_open_orders ($symbol = null, $since = null, $limit = null, $params = array ()) {
@@ -501,7 +499,9 @@ class bittrex extends Exchange {
         $request = array ();
         $request[$orderIdField] = $id;
         $response = $this->marketGetCancel (array_merge ($request, $params));
-        return $this->parse_order($response);
+        return array_merge ($this->parse_order($response), array (
+            'status' => 'canceled',
+        ));
     }
 
     public function parse_symbol ($id) {
@@ -533,7 +533,7 @@ class bittrex extends Exchange {
         if ((is_array ($order) && array_key_exists ('CancelInitiated', $order)) && $order['CancelInitiated'])
             $status = 'canceled';
         if ((is_array ($order) && array_key_exists ('Status', $order)) && $this->options['parseOrderStatus'])
-            $status = $this->parse_order_status($order['Status']);
+            $status = $this->parse_order_status($this->safe_string($order, 'Status'));
         $symbol = null;
         if (is_array ($order) && array_key_exists ('Exchange', $order)) {
             $marketId = $order['Exchange'];
@@ -560,7 +560,6 @@ class bittrex extends Exchange {
             $lastTradeTimestamp = $this->parse8601 ($order['Closed'] . '+00:00');
         if ($timestamp === null)
             $timestamp = $lastTradeTimestamp;
-        $iso8601 = ($timestamp !== null) ? $this->iso8601 ($timestamp) : null;
         $fee = null;
         $commission = null;
         if (is_array ($order) && array_key_exists ('Commission', $order)) {
@@ -607,7 +606,7 @@ class bittrex extends Exchange {
             'info' => $order,
             'id' => $id,
             'timestamp' => $timestamp,
-            'datetime' => $iso8601,
+            'datetime' => $this->iso8601 ($timestamp),
             'lastTradeTimestamp' => $lastTradeTimestamp,
             'symbol' => $symbol,
             'type' => 'limit',
@@ -672,7 +671,7 @@ class bittrex extends Exchange {
         if (!$address || $message === 'ADDRESS_GENERATING')
             throw new AddressPending ($this->id . ' the $address for ' . $code . ' is being generated (pending, not ready yet, retry again later)');
         $tag = null;
-        if (($code === 'XRP') || ($code === 'XLM')) {
+        if (($code === 'XRP') || ($code === 'XLM') || ($code === 'LSK')) {
             $tag = $address;
             $address = $currency['address'];
         }
@@ -794,6 +793,15 @@ class bittrex extends Exchange {
                 throw new ExchangeError ($feedback);
             }
         }
+    }
+
+    public function append_timezone_parse8601 ($x) {
+        $length = is_array ($x) ? count ($x) : 0;
+        $lastSymbol = $x[$length - 1];
+        if (($lastSymbol === 'Z') || (mb_strpos ($x, '+') !== false)) {
+            return $this->parse8601 ($x);
+        }
+        return $this->parse8601 ($x . 'Z');
     }
 
     public function request ($path, $api = 'public', $method = 'GET', $params = array (), $headers = null, $body = null) {
